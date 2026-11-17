@@ -14,6 +14,7 @@ check "claude installed" "rebuild the image" claude --version
 check "claude logged in" "ssh in, tmux attach -t claude, run /login" claude auth status
 # gh auth status exits 0 even for an invalid token (gh 2.45), so make a real API call.
 check "gh sees token" "check GH_TOKEN" gh api user
+check "git author set" "set GIT_NAME/GIT_EMAIL or fix GH_TOKEN" git config --global user.email
 check "settings.json valid" "see entrypoint log" jq empty ~/.claude/settings.json
 
 if [ -n "${VAULT_REPO:-}" ]; then

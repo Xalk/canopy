@@ -16,7 +16,7 @@ done
 
 # 1. Required variables.
 missing=()
-for v in AUTHORIZED_KEYS GH_TOKEN GIT_NAME GIT_EMAIL; do
+for v in AUTHORIZED_KEYS GH_TOKEN; do
   [ -n "${!v:-}" ] || missing+=("$v")
 done
 if [ ${#missing[@]} -gt 0 ]; then
@@ -33,9 +33,22 @@ chmod 600 ~/.ssh/authorized_keys
 
 # 3. Git + GitHub.
 gh auth setup-git
-git config --global user.name "$GIT_NAME"
-git config --global user.email "$GIT_EMAIL"
 git config --global pull.rebase true
+# Commit author: GIT_NAME/GIT_EMAIL, else the token's GitHub user with its noreply email.
+if [ -z "${GIT_NAME:-}" ] || [ -z "${GIT_EMAIL:-}" ]; then
+  # gh still runs --jq over the error body on 401, so trust only its exit code.
+  if user=$(gh api user --jq '"\(.login) \(.id)"' 2>/dev/null); then
+    read -r login id <<< "$user"
+    GIT_NAME=${GIT_NAME:-$login}
+    GIT_EMAIL=${GIT_EMAIL:-$id+$login@users.noreply.github.com}
+  fi
+fi
+if [ -n "${GIT_NAME:-}" ] && [ -n "${GIT_EMAIL:-}" ]; then
+  git config --global user.name "$GIT_NAME"
+  git config --global user.email "$GIT_EMAIL"
+else
+  warn "no git author: set GIT_NAME/GIT_EMAIL or fix GH_TOKEN (commits and vault sync will fail)"
+fi
 
 # 4. Vault.
 if [ -n "${VAULT_REPO:-}" ] && [ ! -d ~/vault/.git ]; then
