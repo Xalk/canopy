@@ -33,12 +33,13 @@ KbdInteractiveAuthentication no
 HostKey /root/.canopy/ssh/ssh_host_ed25519_key
 EOF
 
-# SSH sessions don't inherit the container env; import it from PID 1 (only vars not already set).
+# SSH sessions don't inherit the container env; import the copy saved by entrypoint
+# (only vars not already set).
 RUN cat > /etc/profile.d/canopy-env.sh <<'EOF'
-while IFS= read -r -d '' kv; do
+[ -r /run/canopy/.env ] && while IFS= read -r -d '' kv; do
   k=${kv%%=*}
   [ -z "${!k+x}" ] && export "$kv" 2>/dev/null
-done < /proc/1/environ
+done < /run/canopy/.env
 EOF
 
 COPY . /opt/canopy
