@@ -1,1 +1,60 @@
 #!/bin/bash
+# Environment health check. Exit code = number of failed checks.
+fail=0
+ok()   { echo "✔ $1"; }
+bad()  { echo "✘ $1 — $2"; fail=$((fail + 1)); }
+skip() { echo "– $1 (skipped: $2)"; }
+check() { # check <name> <hint> <command...>
+  local name=$1 hint=$2; shift 2
+  if "$@" >/dev/null 2>&1; then ok "$name"; else bad "$name" "$hint"; fi
+}
+fresh() { [ -f "$1" ] && [ $(( $(date +%s) - $(stat -c %Y "$1") )) -le "$2" ]; }
+
+check "claude installed" "rebuild the image" claude --version
+check "claude logged in" "ssh in, tmux attach -t claude, run /login" claude auth status
+# gh auth status exits 0 even for an invalid token (gh 2.45), so make a real API call.
+check "gh sees token" "check GH_TOKEN" gh api user
+check "settings.json valid" "see entrypoint log" jq empty ~/.claude/settings.json
+
+if [ -n "${VAULT_REPO:-}" ]; then
+  check "vault cloned" "check VAULT_REPO and token access" test -d ~/vault/.git
+else
+  skip "vault" "VAULT_REPO empty"
+fi
+
+IFS=',' read -ra repos <<< "${REPOS:-}"
+for r in "${repos[@]}"; do
+  r=${r//[[:space:]]/}
+  [ -n "$r" ] || continue
+  name=$(basename "$r" .git)
+  check "repo $name cloned" "check REPOS and token access" test -d ~/projects/"$name"/.git
+done
+
+if [ -n "${LINEAR_API_KEY:-}" ]; then
+  check "linear connected (claude mcp list)" "check LINEAR_API_KEY" \
+    bash -c 'claude mcp list 2>/dev/null | grep -q "^linear-server:.*Connected"'
+else
+  skip "linear" "LINEAR_API_KEY empty"
+fi
+
+if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then
+  check "telegram token written" "restart the container" test -s ~/.claude/channels/telegram/.env
+  check "telegram paired + allowlist" "DM the bot, then /telegram:access pair <code> and /telegram:access policy allowlist" \
+    jq -e '(.allowFrom | length > 0) and .dmPolicy == "allowlist"' ~/.claude/channels/telegram/access.json
+else
+  skip "telegram" "TELEGRAM_BOT_TOKEN empty"
+fi
+
+check "tmux session claude alive" "run start.sh" tmux has-session -t claude
+
+if [ -d ~/vault/.git ]; then
+  check "tmux session sync alive" "run start.sh" tmux has-session -t sync
+  # The sync loop pulls every 5 min (updates FETCH_HEAD) even when there is nothing to commit.
+  check "vault synced in last 15 min" "see ~/vault-sync.log, tmux attach -t sync" fresh ~/vault/.git/FETCH_HEAD 900
+  check "vault pushed (not ahead of remote)" "push failing? tmux attach -t sync" \
+    test "$(git -C ~/vault rev-list --count '@{u}..HEAD' 2>/dev/null)" = 0
+fi
+
+echo
+[ "$fail" -eq 0 ] && echo "All checks passed." || echo "$fail check(s) failed."
+exit "$fail"
