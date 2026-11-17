@@ -1,0 +1,16 @@
+services:
+  canopy:
+    build: .
+    image: canopy
+    hostname: canopy
+    # env_file keeps secrets out of this file and out of git. They are still visible
+    # in `docker inspect` (Config.Env); use *_FILE + Docker secrets if that matters.
+    env_file: .env
+    ports:
+      - "2222:22"
+    volumes:
+      - home:/root
+    restart: unless-stopped
+
+volumes:
+  home:
