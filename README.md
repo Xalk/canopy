@@ -45,7 +45,8 @@ Only two things are required: an SSH key and a GitHub token. Everything else is 
 ## Quick start
 
 The `canopy` CLI runs on your laptop (Windows, macOS, Linux; Node 20.12+) and sets up the server for you.
-You need a VPS with Docker and SSH access by key; to try it first, use `target: docker` on your own machine.
+You need a VPS with Docker and SSH access by key ([step-by-step guide](docs/vps.md)); to try it first, use
+`target: docker` on your own machine.
 
 ```bash
 git clone https://github.com/Xalk/canopy && cd canopy
@@ -179,7 +180,9 @@ Connect with `ssh -p 2222 root@localhost`, then:
 
 ## Deploy on a VPS
 
-Any Linux server with Docker Engine (with the compose plugin) and SSH access by key.
+**Step-by-step guide, from a fresh server to the first Telegram message: [docs/vps.md](docs/vps.md).**
+
+In short: any Linux server with Docker Engine (with the compose plugin) and SSH access by key.
 
 1. In `canopy.yaml`: `target: ssh` and `vps: { host, user, port, key }`.
 2. `canopy up`: uploads the image sources and config to `~/canopy-<name>`, asks before uploading `.env`
