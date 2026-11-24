@@ -7,6 +7,8 @@
 
 ## Sessions
 - When I ask to start a new session (in any language), run `fresh.sh`.
+- Before running `fresh.sh`, overwrite `~/.canopy/handoff.md` with a short handoff: the task, what is done,
+  what is next, key files and commands. The new session loads it automatically.
 
 ## Questions vs tasks
 - When I ask a question, answer it and stop. Do not edit files, tickets or branches until I ask for a change.
@@ -14,6 +16,20 @@
 ## Bugs you cannot reproduce
 - For bugs I see on a device or in an environment you can't run, ask the platform and conditions first.
 - Find the mechanism in code and config before changing anything. Do not ship guess-fixes one after another.
+
+## Tests
+- Never delete, skip or weaken a test to make it pass. If a test looks wrong, tell me why and ask.
+- A new test must fail before the code it covers exists. If it passes right away, it tests nothing.
+
+## Done means verified
+- Before saying something is done, run the relevant checks and name the ones you ran.
+- Green tests are not proof the feature works: when you can run the app or the flow, do it.
+
+## Decisions and review
+- At a fork that changes scope, data, a public API or user-visible behaviour, ask me instead of choosing.
+  One question at a time.
+- For non-trivial changes, have a subagent with fresh context review the diff against the task before you
+  open a PR. It should see the task and the diff, not your reasoning.
 
 ## Git and GitHub
 - You act through my GitHub account. Start every comment or review reply you post with `👾 **Agent Answer:**`
