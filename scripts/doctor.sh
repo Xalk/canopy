@@ -11,7 +11,7 @@ check() { # check <name> <hint> <command...>
 fresh() { [ -f "$1" ] && [ $(( $(date +%s) - $(stat -c %Y "$1") )) -le "$2" ]; }
 
 check "claude installed" "rebuild the image" claude --version
-check "claude logged in" "ssh in, tmux attach -t claude, run /login" claude auth status
+check "claude logged in" "canopy login claude (or: tmux attach -t claude)" claude auth status
 # gh auth status exits 0 even for an invalid token (gh 2.45), so make a real API call.
 check "gh sees token" "check GH_TOKEN" gh api user
 check "git author set" "set GIT_NAME/GIT_EMAIL or fix GH_TOKEN" git config --global user.email
@@ -39,9 +39,14 @@ else
   skip "linear" "LINEAR_API_KEY empty"
 fi
 
+if [[ ",${MCP:-}," == *,figma,* ]]; then
+  check "figma connected (claude mcp list)" "canopy login figma" \
+    bash -c 'claude mcp list 2>/dev/null | grep -q "^figma:.*Connected"'
+fi
+
 if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then
   check "telegram token written" "restart the container" test -s ~/.claude/channels/telegram/.env
-  check "telegram paired + allowlist" "DM the bot, then /telegram:access pair <code> and /telegram:access policy allowlist" \
+  check "telegram paired + allowlist" "canopy login telegram (or: telegram-pair.sh <code from the bot>)" \
     jq -e '(.allowFrom | length > 0) and .dmPolicy == "allowlist"' ~/.claude/channels/telegram/access.json
 else
   skip "telegram" "TELEGRAM_BOT_TOKEN empty"

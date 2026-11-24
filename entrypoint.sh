@@ -119,6 +119,10 @@ if [ -n "${LINEAR_API_KEY:-}" ] && ! claude mcp get linear-server >/dev/null 2>&
   claude mcp add -s user -t http linear-server https://mcp.linear.app/mcp \
     -H "Authorization: Bearer $LINEAR_API_KEY" || warn "linear mcp add failed"
 fi
+# Figma uses OAuth: added here, authorized with `canopy login figma` (claude mcp login --no-browser).
+if [[ ",${MCP:-}," == *,figma,* ]] && ! claude mcp get figma >/dev/null 2>&1; then
+  claude mcp add -s user -t http figma https://mcp.figma.com/mcp || warn "figma mcp add failed"
+fi
 
 # 9. Telegram bot token for the channel plugin.
 if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then
