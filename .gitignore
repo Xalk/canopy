@@ -2,3 +2,4 @@
 *.local.*
 !examples/**
 .server-snapshot/
+.server-snapshot-v2/
