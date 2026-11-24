@@ -2,7 +2,9 @@
 import { fileURLToPath } from 'node:url';
 import { styleText } from 'node:util';
 import { Command } from 'commander';
+import { check } from './check.js';
 import { ConfigError, loadConfig } from './config.js';
+import { init } from './init.js';
 import { CliError, ok, say, warn } from './run.js';
 import { dockerTarget } from './targets/docker.js';
 import { sh, type Target } from './targets/target.js';
@@ -30,6 +32,11 @@ const action =
     try {
       process.exitCode = await fn(...args);
     } catch (e) {
+      if (e instanceof Error && e.name === 'ExitPromptError') {
+        console.error('Cancelled.');
+        process.exitCode = 130;
+        return;
+      }
       if (!(e instanceof ConfigError || e instanceof CliError)) throw e;
       console.error(`${styleText('red', '✘')} ${e.message}`);
       if (e instanceof CliError && e.hint) console.error(`  ${e.hint}`);
@@ -43,6 +50,17 @@ const program = new Command('canopy').description(
   'Manage a canopy environment: Claude Code with your repos, vault, rules and channels.\n' +
     'Run commands in the folder that holds canopy.yaml and .env.',
 );
+
+program
+  .command('init')
+  .description('create canopy.yaml and .env by answering a few questions')
+  .option('--check', 'validate the keys in .env against GitHub, Linear and Telegram')
+  .addHelpText('after', example('canopy init', 'canopy init --check'))
+  .action(
+    action((opts: { check?: boolean }) =>
+      opts.check ? check(process.cwd()) : init(process.cwd(), packageDir),
+    ),
+  );
 
 program
   .command('up')

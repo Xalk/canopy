@@ -23,3 +23,13 @@ export function formatEnvFile(env: Record<string, string>): string {
       .join('')
   );
 }
+
+/** Parse KEY=VALUE lines (comments and blank lines ignored; surrounding quotes stripped). */
+export function parseEnvFile(text: string): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const line of text.split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/);
+    if (m) env[m[1]] = m[2].trim().replace(/^(['"])(.*)\1$/, '$2');
+  }
+  return env;
+}

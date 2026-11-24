@@ -23,7 +23,7 @@ export type Config = {
 export const CONFIG_FILE = 'canopy.yaml';
 export class ConfigError extends Error {}
 
-const REPO = /^([\w.-]+\/[\w.-]+|https:\/\/\S+)$/;
+export const REPO = /^([\w.-]+\/[\w.-]+|https:\/\/\S+)$/;
 const NAME = /^[a-z0-9][a-z0-9_-]*$/;
 
 function fail(field: string, msg: string): never {

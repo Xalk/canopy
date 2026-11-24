@@ -4,6 +4,8 @@ import { styleText } from 'node:util';
 export const say = (msg: string) => console.log(`${styleText('cyan', '›')} ${msg}`);
 export const ok = (msg: string) => console.log(`${styleText('green', '✔')} ${msg}`);
 export const warn = (msg: string) => console.error(`${styleText('yellow', '!')} ${msg}`);
+export const bad = (msg: string, hint?: string) =>
+  console.error(`${styleText('red', '✘')} ${msg}${hint ? ` — ${hint}` : ''}`);
 
 export class CliError extends Error {
   constructor(
@@ -17,13 +19,14 @@ export class CliError extends Error {
 /** Run a command with the terminal attached (or capture stdout). No shell: argv is passed as is. */
 export function run(
   argv: string[],
-  opts: { capture?: boolean; cwd?: string; input?: string } = {},
+  opts: { capture?: boolean; cwd?: string; input?: string; env?: NodeJS.ProcessEnv } = {},
 ) {
   const r = spawnSync(argv[0], argv.slice(1), {
     cwd: opts.cwd,
+    env: opts.env ? { ...process.env, ...opts.env } : undefined,
     input: opts.input,
     encoding: 'utf8',
-    stdio: opts.capture || opts.input !== undefined ? ['pipe', 'pipe', 'inherit'] : 'inherit',
+    stdio: opts.capture || opts.input !== undefined ? 'pipe' : 'inherit',
   });
   if (r.error && (r.error as NodeJS.ErrnoException).code === 'ENOENT') {
     throw new CliError(

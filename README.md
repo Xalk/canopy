@@ -62,8 +62,13 @@ repos:
   - { repo: you/api, branch: develop }
 ```
 
+Start in an empty folder: `canopy init` asks a few questions and writes `canopy.yaml`, `.env` (with a comment
+on where to get each key) and `.gitignore`; `canopy init --check` validates the keys; `canopy up` starts everything.
+
 | Command | What it does |
 |---|---|
+| `canopy init` | wizard: target, SSH key, vault (can create one), repos, integrations, git author |
+| `canopy init --check` | validate `.env` keys against GitHub, Linear and Telegram; values are never printed |
 | `canopy up` | build and start the container, wait for setup, run doctor |
 | `canopy down` | stop the container; the `/root` volume is kept |
 | `canopy restart` | restart the agent and keep the conversation |

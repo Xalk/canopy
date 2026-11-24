@@ -13,7 +13,8 @@
     "entrypoint.sh",
     "config",
     "scripts",
-    ".dockerignore"
+    ".dockerignore",
+    "examples"
   ],
   "engines": {
     "node": ">=20.12"
@@ -25,6 +26,7 @@
     "test": "tsc && node --test \"dist/test/*.test.js\""
   },
   "dependencies": {
+    "@inquirer/prompts": "^8.8.1",
     "commander": "^15.1.0",
     "yaml": "^2.9.1"
   },
