@@ -11,6 +11,7 @@
     "defaultMode": "auto",
     "allow": [
       "mcp__plugin_telegram_telegram",
+      "Read(~/.claude/channels/telegram/inbox/**)",
       "mcp__linear-server__list_issues",
       "mcp__linear-server__get_issue",
       "mcp__linear-server__list_comments",
