@@ -1,9 +1,9 @@
-.git
-.env
-*.local.*
-.server-snapshot
-node_modules
-cli
-dist
-canopy.yaml
-.canopy
+# Allowlist: the image needs only these. Everything else (snapshots, .env, node_modules, notes)
+# stays out of the build context, whatever else lands in this folder.
+*
+!Dockerfile
+!entrypoint.sh
+!config
+!config/**
+!scripts
+!scripts/**

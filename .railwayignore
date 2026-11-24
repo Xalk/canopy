@@ -1,7 +1,7 @@
-node_modules
-cli
-dist
-.canopy
-canopy.yaml
-.env
-.server-snapshot*
+# Allowlist (gitignore syntax): upload only what the image is built from.
+/*
+!/Dockerfile
+!/entrypoint.sh
+!/config/
+!/scripts/
+!/.dockerignore
