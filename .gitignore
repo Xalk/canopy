@@ -3,3 +3,7 @@
 !examples/**
 .server-snapshot/
 .server-snapshot-v2/
+node_modules/
+dist/
+.canopy/
+/canopy.yaml

@@ -1,0 +1,86 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { stringify } from 'yaml';
+import type { Config } from '../config.js';
+import { configToEnv, formatEnvFile } from '../env.js';
+import { run } from '../run.js';
+import type { Target } from './target.js';
+
+/** The compose file canopy generates in <project>/.canopy/ (image sources come from the installed package). */
+export function composeFile(cfg: Config, projectDir: string, packageDir: string): string {
+  const port = cfg.ssh?.port ?? 2222;
+  return stringify({
+    services: {
+      canopy: {
+        build: {
+          context: resolve(packageDir),
+          ...(cfg.claudeCodeVersion
+            ? { args: { CLAUDE_CODE_VERSION: cfg.claudeCodeVersion } }
+            : {}),
+        },
+        image: cfg.name,
+        hostname: cfg.name,
+        // Secrets from .env stay out of this file; they still show up in `docker inspect`.
+        env_file: [resolve(projectDir, '.env'), resolve(projectDir, '.canopy', 'config.env')],
+        ports: [`${port}:22`],
+        volumes: ['home:/root'],
+        restart: 'unless-stopped',
+      },
+    },
+    volumes: { home: {} },
+  });
+}
+
+/** argv builders, kept pure so they can be tested without Docker. */
+export function dockerArgv(cfg: Config, projectDir: string) {
+  const base = [
+    'docker',
+    'compose',
+    '-f',
+    join(projectDir, '.canopy', 'compose.yml'),
+    '-p',
+    cfg.name,
+  ];
+  return {
+    up: [...base, 'up', '-d', '--build'],
+    down: [...base, 'down'],
+    logs: [...base, 'logs', '-f'],
+    logsOnce: [...base, 'logs', '--no-log-prefix'],
+    exec: (argv: string[], tty: boolean) => [
+      ...base,
+      'exec',
+      tty ? '-it' : '-T',
+      'canopy',
+      ...argv,
+    ],
+  };
+}
+
+export function dockerTarget(cfg: Config, projectDir: string, packageDir: string): Target {
+  // Generated files are rewritten before every command, so they always match canopy.yaml.
+  mkdirSync(join(projectDir, '.canopy'), { recursive: true });
+  writeFileSync(
+    join(projectDir, '.canopy', 'compose.yml'),
+    composeFile(cfg, projectDir, packageDir),
+  );
+  writeFileSync(join(projectDir, '.canopy', 'config.env'), formatEnvFile(configToEnv(cfg)));
+  const a = dockerArgv(cfg, projectDir);
+
+  return {
+    up: () => run(a.up).code,
+    down: () => run(a.down).code,
+    logs: () => run(a.logs).code,
+    exec: (argv, opts) => run(a.exec(argv, false), { capture: opts?.capture }),
+    interactive: (argv) => run(a.exec(argv, true)).code,
+    waitReady(timeoutSec) {
+      const until = Date.now() + timeoutSec * 1000;
+      while (Date.now() < until) {
+        const out = run(a.logsOnce, { capture: true }).stdout;
+        if (out.includes('[canopy] ready')) return true;
+        if (out.includes('[canopy] ERROR')) return false;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000); // sleep 3 s
+      }
+      return false;
+    },
+  };
+}

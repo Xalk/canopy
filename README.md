@@ -47,6 +47,33 @@ docker compose exec canopy bash -lc doctor.sh
 
 Then do the [one-time manual steps](#manual-steps). They persist across restarts.
 
+## CLI
+
+The `canopy` CLI runs on your laptop (Windows, macOS, Linux; Node 20.12+) and drives the container for you.
+Put `canopy.yaml` (no secrets) next to `.env` (secrets only) and run commands from that folder.
+
+```yaml
+# canopy.yaml
+name: canopy            # compose project, image and volume name
+target: docker          # docker for now; ssh and railway come next
+vault: you/vault
+repos:
+  - you/app
+  - { repo: you/api, branch: develop }
+```
+
+| Command | What it does |
+|---|---|
+| `canopy up` | build and start the container, wait for setup, run doctor |
+| `canopy down` | stop the container; the `/root` volume is kept |
+| `canopy restart` | restart the agent and keep the conversation |
+| `canopy fresh` | restart the agent with a clean context |
+| `canopy doctor` | ✔/✘ for every part; exit code 1 if anything fails |
+| `canopy logs [--agent]` | follow container logs, or watch the agent session read-only |
+| `canopy ssh` | open a shell inside the container |
+
+From a clone of this repo: `npm install && npm run build && npm link`.
+
 ## Configuration
 
 Every variable is documented in [`.env.example`](.env.example).

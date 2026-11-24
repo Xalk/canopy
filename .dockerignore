@@ -2,3 +2,8 @@
 .env
 *.local.*
 .server-snapshot
+node_modules
+cli
+dist
+canopy.yaml
+.canopy
