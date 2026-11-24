@@ -69,6 +69,7 @@ on where to get each key) and `.gitignore`; `canopy init --check` validates the 
 |---|---|
 | `canopy init` | wizard: target, SSH key, vault (can create one), repos, integrations, git author |
 | `canopy init --check` | validate `.env` keys against GitHub, Linear and Telegram; values are never printed |
+| `canopy login [service]` | log in to Claude, pair Telegram, authorize Figma; `status` shows what is connected |
 | `canopy up` | build and start the container, wait for setup, run doctor |
 | `canopy down` | stop the container; the `/root` volume is kept |
 | `canopy restart` | restart the agent and keep the conversation |
@@ -111,26 +112,29 @@ and canopy links them into every session. Adapt the tool to your process, not th
 
 ## Manual steps
 
-Connect with `ssh -p 2222 root@localhost`, then:
+**With the CLI**, one command walks you through all of them and skips what is already done:
 
-1. **Log in to Claude**: `tmux attach -t claude`, follow the login prompt, detach with `Ctrl+B` `D`.
-2. **Pair Telegram**: DM your bot, it replies with a code. In the Claude session:
-   ```
-   /telegram:access pair <code>
-   /telegram:access policy allowlist
-   ```
+```bash
+canopy login            # or: canopy login claude | telegram | figma | status
+```
+
+- **Claude**: opens the agent session; log in, trust the folder, detach with `Ctrl+B` `D`.
+- **Telegram**: DM your bot, paste the 6-character code it replies with. canopy approves it and switches the bot
+  to allowlist itself (no agent turn, no tokens).
+- **Figma** (add `figma` to `mcp:`): open the printed link, click Allow, then paste the `localhost` address the
+  browser fails to load. That address carries the one-time code back to the server.
 
 <details>
-<summary><b>OAuth for remote MCP servers (Figma and others)</b></summary>
+<summary><b>Without the CLI</b></summary>
 
 <br>
 
-OAuth redirects to `http://localhost:<port>/callback`, which is the server, not your laptop.
+Connect with `ssh -p 2222 root@localhost`, then:
 
-1. `claude mcp add -s user -t http figma https://mcp.figma.com/mcp`
-2. In the Claude session: `/mcp` → the server → *Authenticate*. Claude prints a URL and waits.
-3. Open the URL locally and approve. The redirect to `localhost:<port>/callback?...` fails; copy that full URL.
-4. In a second SSH session: `curl 'http://localhost:<port>/callback?code=...&state=...'`
+1. **Claude**: `tmux attach -t claude`, follow the login prompt, detach with `Ctrl+B` `D`.
+2. **Telegram**: DM your bot, it replies with a code; run `telegram-pair.sh <code>`.
+3. **Figma or another OAuth MCP server**: `claude mcp add -s user -t http figma https://mcp.figma.com/mcp`,
+   then `claude mcp login figma --no-browser` and follow it.
 
 </details>
 

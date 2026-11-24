@@ -5,6 +5,7 @@ import { Command } from 'commander';
 import { check } from './check.js';
 import { ConfigError, loadConfig } from './config.js';
 import { init } from './init.js';
+import { login, SERVICES, type Service } from './login.js';
 import { CliError, ok, say, warn } from './run.js';
 import { dockerTarget } from './targets/docker.js';
 import { sh, type Target } from './targets/target.js';
@@ -12,8 +13,7 @@ import { sh, type Target } from './targets/target.js';
 /** The installed package root: holds the image sources (Dockerfile, entrypoint.sh, config/, scripts/). */
 const packageDir = fileURLToPath(new URL('../../', import.meta.url));
 
-function target(): Target {
-  const cfg = loadConfig(process.cwd());
+function target(cfg = loadConfig(process.cwd())): Target {
   if (cfg.target === 'docker') return dockerTarget(cfg, process.cwd(), packageDir);
   throw new CliError(`target: ${cfg.target} is not supported yet.`, 'Use target: docker for now.');
 }
@@ -150,5 +150,22 @@ program
   .description('open a shell inside the container')
   .addHelpText('after', example('canopy ssh'))
   .action(action(() => target().interactive(['bash', '-l'])));
+
+program
+  .command('login')
+  .argument('[service]', `one of: ${SERVICES.join(', ')} (default: all, skipping what is done)`)
+  .description(
+    'log in to Claude, pair Telegram and authorize Figma without typing in the container',
+  )
+  .addHelpText('after', example('canopy login', 'canopy login telegram', 'canopy login status'))
+  .action(
+    action((service?: string) => {
+      if (service && !SERVICES.includes(service as Service)) {
+        throw new CliError(`Unknown service "${service}".`, `Use one of: ${SERVICES.join(', ')}.`);
+      }
+      const cfg = loadConfig(process.cwd());
+      return login(target(cfg), cfg, service as Service | undefined);
+    }),
+  );
 
 await program.parseAsync();

@@ -61,3 +61,12 @@ test('default branch from ls-remote and GitHub slugs', () => {
   assert.equal(githubSlug('https://github.com/me/app.git'), 'me/app');
   assert.equal(githubSlug('https://gitlab.com/me/app'), undefined);
 });
+
+test('telegram pairing code format', async () => {
+  const { isPairingCode } = await import('../src/login.js');
+  assert.ok(isPairingCode('a1b2c3'));
+  assert.ok(isPairingCode(' A1B2C3 '));
+  assert.ok(!isPairingCode('a1b2c'));
+  assert.ok(!isPairingCode('a1b2c3; rm -rf /'));
+  assert.ok(!isPairingCode('zzzzzz'));
+});
