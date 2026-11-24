@@ -46,6 +46,9 @@ else
   skip "telegram" "TELEGRAM_BOT_TOKEN empty"
 fi
 
+used=$(df --output=pcent /root | tail -1 | tr -dc 0-9)
+check "volume /root ${used}% used (limit 85%)" "find big dirs: du -xh -d2 ~ | sort -h | tail" test "$used" -lt 85
+
 check "tmux session claude alive" "run start.sh" tmux has-session -t claude
 
 if [ -d ~/vault/.git ]; then

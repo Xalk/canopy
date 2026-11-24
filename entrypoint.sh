@@ -99,8 +99,13 @@ else
 fi
 mv ~/.claude/settings.json.tmp ~/.claude/settings.json
 
-# 7. Skills from the vault (never replaces an existing ~/.claude/skills).
-[ ! -d ~/vault/.claude/skills ] || [ -e ~/.claude/skills ] || ln -s ~/vault/.claude/skills ~/.claude/skills
+# 7. Skills from the vault, linked one by one: ~/.claude/skills stays a real dir because Claude
+#    writes its own synced skills there, and those must not end up in the vault.
+mkdir -p ~/.claude/skills
+find ~/.claude/skills -maxdepth 1 -xtype l -delete  # skills removed from the vault
+for s in ~/vault/.claude/skills/*/; do
+  [ ! -d "$s" ] || ln -sfn "${s%/}" ~/.claude/skills/
+done
 
 # 8. Telegram plugin + Linear MCP (best effort: a failure here must not block SSH access).
 # Both commands are idempotent (no-op when already on disk / installed).

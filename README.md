@@ -28,6 +28,8 @@ how you structure your project docs or your vault.
 - 🔁 **Idempotent start**: repos and vault are cloned once; restarts and rebuilds keep all state in the `/root` volume
 - 🗂️ **Vault sync**: `~/vault` is committed, rebased and pushed every 5 minutes
 - 💬 **Telegram channel**: talk to the agent from your phone; remote control is on as well
+- 🔄 **Fresh sessions on request**: ask for a new session and get a Telegram ping when it's ready
+- 💾 **Small-volume friendly**: npm / yarn / bun caches stay off the volume; `doctor.sh` warns at 85% disk
 - 🛡️ **Safe by default**: `auto` mode with explicit allow / ask / deny rules, SSH by key only
 - 🩺 **`doctor.sh`**: one ✔/✘ line per component, with a hint for every ✘
 
@@ -62,6 +64,7 @@ Any variable can be read from a file instead: `GH_TOKEN_FILE=/run/secrets/gh_tok
 **Base and local.** Defaults live in [`config/`](config/). Your changes go into `/root/canopy.local/`
 (`CLAUDE.local.md`, `settings.local.json`) and are merged on every start; local permission rules are added to
 the base ones, not replacing them. See [`examples/`](examples/).
+Skills in the vault's `.claude/skills/` are linked into `~/.claude/skills` one by one.
 
 `PROFILE` (`personal` | `project`) only describes intent in V1; both behave the same.
 

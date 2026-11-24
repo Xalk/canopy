@@ -8,7 +8,7 @@ vault/
 ├── CLAUDE.md            # this file: what the vault is and how to use it
 ├── notes/               # free-form notes, decisions, meeting logs
 ├── projects/<name>.md   # per-project context: goals, conventions, links
-└── .claude/skills/      # optional: symlinked to ~/.claude/skills by canopy
+└── .claude/skills/      # optional: each skill is linked into ~/.claude/skills by canopy
 ```
 
 ## Rules for the agent

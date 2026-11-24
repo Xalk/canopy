@@ -6,8 +6,12 @@ ARG CLAUDE_CODE_VERSION=2.1.326
 ARG NODE_MAJOR=24
 ARG DEBIAN_FRONTEND=noninteractive
 
+# Package caches live in the container fs, not the /root volume (volumes are small, e.g. 5 GB on Railway).
 ENV LANG=C.UTF-8 \
-    DISABLE_AUTOUPDATER=1
+    DISABLE_AUTOUPDATER=1 \
+    npm_config_cache=/var/cache/npm \
+    YARN_CACHE_FOLDER=/var/cache/yarn \
+    BUN_INSTALL_CACHE_DIR=/var/cache/bun
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl git gh tmux openssh-server jq ripgrep build-essential \
