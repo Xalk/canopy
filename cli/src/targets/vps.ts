@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { confirm } from '@inquirer/prompts';
 import type { Config, Endpoint } from '../config.js';
 import { configToEnv, formatEnvFile } from '../env.js';
-import { CliError, run, runBytes, say } from '../run.js';
+import { CliError, run, runBytes, say, sleep } from '../run.js';
 import { composeFile } from './docker.js';
 import { sshArgv } from './remote.js';
 import type { Target } from './target.js';
@@ -103,7 +103,7 @@ export function vpsTarget(cfg: Config, projectDir: string, packageDir: string): 
         const out = run(a.logsOnce, { capture: true }).stdout;
         if (out.includes('[canopy] ready')) return true;
         if (out.includes('[canopy] ERROR')) return false;
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000); // sleep 5 s
+        sleep(5000);
       }
       return false;
     },

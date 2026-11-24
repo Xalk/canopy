@@ -3,8 +3,8 @@ import { join } from 'node:path';
 import { confirm } from '@inquirer/prompts';
 import type { Config, Endpoint } from '../config.js';
 import { configToEnv, parseEnvFile } from '../env.js';
-import { CliError, ok, run, say, warn } from '../run.js';
-import { sshArgv, waitForSsh } from './remote.js';
+import { CliError, ok, run, say, sleep, warn } from '../run.js';
+import { sshArgv } from './remote.js';
 import type { Target } from './target.js';
 
 /** Variables for the Railway service: secrets from .env + canopy.yaml values (+ the Claude Code build arg). */
@@ -29,9 +29,17 @@ export function railwayTarget(cfg: Config, projectDir: string, packageDir: strin
   const ssh = cfg.ssh as Endpoint;
   const rw = (args: string[], opts: { capture?: boolean; input?: string } = {}) =>
     run(['railway', ...args], { cwd: projectDir, ...opts });
+  // When the container started: the entrypoint rewrites /run/canopy/.env on every start.
+  // The old deployment keeps answering SSH until the new one is up, so readiness = a new start time.
+  const startedAt = () => {
+    const r = run(sshArgv(ssh, ['stat', '-c', '%Y', '/run/canopy/.env']), { capture: true });
+    return r.code === 0 ? r.stdout.trim() : undefined;
+  };
+  let before: string | undefined;
 
   return {
     async up() {
+      before = startedAt();
       if (rw(['status', '--json'], { capture: true }).code !== 0) {
         say('Link this folder to your Railway project and service (once).');
         if (rw(['link']).code !== 0)
@@ -88,6 +96,14 @@ export function railwayTarget(cfg: Config, projectDir: string, packageDir: strin
     logs: () => rw(['logs']).code,
     exec: (argv, opts) => run(sshArgv(ssh, argv), { capture: opts?.capture }),
     interactive: (argv) => run(sshArgv(ssh, argv, { tty: true })).code,
-    waitReady: (timeoutSec) => waitForSsh(ssh, timeoutSec),
+    waitReady(timeoutSec) {
+      const until = Date.now() + timeoutSec * 1000;
+      while (Date.now() < until) {
+        const now = startedAt();
+        if (now && now !== before) return true;
+        sleep(5000);
+      }
+      return false;
+    },
   };
 }

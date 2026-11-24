@@ -50,3 +50,7 @@ export function runBytes(argv: string[], cwd?: string): Buffer {
   if (r.error || r.status !== 0) throw new CliError(`\`${argv.join(' ')}\` failed.`);
   return r.stdout;
 }
+
+/** Block for `ms` milliseconds (the CLI is synchronous on purpose: one step at a time). */
+export const sleep = (ms: number) =>
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);

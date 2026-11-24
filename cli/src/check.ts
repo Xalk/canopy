@@ -8,6 +8,7 @@ import { bad, CliError, ok, say, warn } from './run.js';
 
 type Body = {
   login?: string;
+  private?: boolean;
   ok?: boolean;
   result?: { username?: string };
   data?: { viewer?: { name?: string } };
@@ -76,6 +77,10 @@ export async function check(dir: string): Promise<number> {
         }
         const r = await request(`https://api.github.com/repos/${slug}`, { headers: auth });
         result(r.ok, `GH_TOKEN can see ${slug}`, "add it to the token's repository access");
+        // Anyone can read a public repo, so this can't tell whether the token may push to it.
+        if (r.ok && r.body?.private === false) {
+          warn(`${slug} is public: push access isn't checked; make sure it is in the token's list`);
+        }
       }
     }
   }

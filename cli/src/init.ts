@@ -63,6 +63,13 @@ export function ensureGitignore(text: string): string {
 }
 
 /** `git ls-remote --symref <url> HEAD` output -> default branch. */
+/** Add a public key to AUTHORIZED_KEYS (";"-separated) unless it is already there; keeps the others. */
+export function mergeAuthorizedKeys(existing: string | undefined, key: string): string {
+  if (!existing) return key;
+  const body = key.split(/\s+/)[1];
+  return body && existing.includes(body) ? existing : `${existing};${key}`;
+}
+
 export function parseHead(lsRemote: string): string | undefined {
   return lsRemote.match(/^ref: refs\/heads\/(\S+)\s+HEAD/m)?.[1];
 }
@@ -137,7 +144,10 @@ export async function init(dir: string, packageDir: string): Promise<number> {
         value: p,
       })),
     });
-    prevEnv.AUTHORIZED_KEYS = readFileSync(join(sshDir, pub), 'utf8').trim();
+    prevEnv.AUTHORIZED_KEYS = mergeAuthorizedKeys(
+      prevEnv.AUTHORIZED_KEYS,
+      readFileSync(join(sshDir, pub), 'utf8').trim(),
+    );
     key = `~/.ssh/${pub.replace(/\.pub$/, '')}`;
   } else {
     warn(

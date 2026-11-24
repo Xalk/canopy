@@ -131,7 +131,8 @@ Every variable is documented in [`.env.example`](.env.example).
 | `LINEAR_API_KEY` | | adds the Linear MCP server |
 | `GIT_NAME` / `GIT_EMAIL` | | defaults to the token's GitHub user |
 
-Any variable can be read from a file instead: `GH_TOKEN_FILE=/run/secrets/gh_token` (Docker secrets).
+Secrets and the git author can be read from a file instead: `GH_TOKEN_FILE=/run/secrets/gh_token` (Docker
+secrets). This works for `AUTHORIZED_KEYS`, `GH_TOKEN`, `LINEAR_API_KEY`, `TELEGRAM_BOT_TOKEN`, `GIT_NAME`, `GIT_EMAIL`.
 
 **Base and local.** Defaults live in [`config/`](config/). Your changes go into `/root/canopy.local/`
 (`CLAUDE.local.md`, `settings.local.json`) and are merged on every start; local permission rules are added to
@@ -184,8 +185,8 @@ Any Linux server with Docker Engine (with the compose plugin) and SSH access by 
    (stored there with `chmod 600`), builds and starts the container.
 3. `canopy login`, `canopy doctor`, `canopy ssh` and the rest run over the same SSH connection.
 
-The container also publishes its own sshd on port 2222. The CLI doesn't need it, so you can keep that port
-closed in your firewall and use it only if you want to connect from elsewhere.
+The container's own sshd (port 2222) is bound to `127.0.0.1` on a VPS: the CLI doesn't need it, and ports
+published by Docker bypass host firewalls such as UFW. Reach it through an SSH tunnel if you ever need it.
 
 <details>
 <summary><b>Railway instead of a VPS</b></summary>

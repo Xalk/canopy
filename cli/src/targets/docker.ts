@@ -3,7 +3,7 @@ import { join, resolve } from 'node:path';
 import { stringify } from 'yaml';
 import type { Config } from '../config.js';
 import { configToEnv, formatEnvFile } from '../env.js';
-import { run, say } from '../run.js';
+import { run, say, sleep } from '../run.js';
 import type { Target } from './target.js';
 
 /**
@@ -25,7 +25,9 @@ export function composeFile(cfg: Config, paths: { context: string; envFiles: str
         hostname: cfg.name,
         // Secrets from .env stay out of this file; they still show up in `docker inspect`.
         env_file: paths.envFiles,
-        ports: [`${port}:22`],
+        // On a VPS the CLI goes through the host sshd, so keep this one off the internet:
+        // Docker-published ports bypass host firewalls such as UFW.
+        ports: [cfg.target === 'ssh' ? `127.0.0.1:${port}:22` : `${port}:22`],
         volumes: ['home:/root'],
         restart: 'unless-stopped',
       },
@@ -87,7 +89,7 @@ export function dockerTarget(cfg: Config, projectDir: string, packageDir: string
         const out = run(a.logsOnce, { capture: true }).stdout;
         if (out.includes('[canopy] ready')) return true;
         if (out.includes('[canopy] ERROR')) return false;
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 3000); // sleep 3 s
+        sleep(3000);
       }
       return false;
     },

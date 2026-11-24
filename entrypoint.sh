@@ -9,9 +9,12 @@ log()  { echo "[canopy] $*"; }
 warn() { echo "[canopy] WARN: $*" >&2; }
 
 # 0. FOO_FILE=/path -> FOO=<file contents> (Docker secrets). Plain FOO still works (Railway).
-for f in $(compgen -e | grep '_FILE$' || true); do
+#    Only canopy's own variables, so an unrelated *_FILE set by the platform can't stop the container.
+for v in AUTHORIZED_KEYS GH_TOKEN LINEAR_API_KEY TELEGRAM_BOT_TOKEN GIT_NAME GIT_EMAIL; do
+  f=${v}_FILE
+  [ -n "${!f:-}" ] || continue
   [ -f "${!f}" ] || { echo "[canopy] ERROR: $f points to missing file ${!f}" >&2; exit 1; }
-  export "${f%_FILE}=$(cat "${!f}")"
+  export "$v=$(cat "${!f}")"
 done
 
 # 1. Required variables.
@@ -64,6 +67,8 @@ for r in "${repos[@]}"; do
   branch=${DEFAULT_BRANCH:-}
   [[ $r != *#* ]] || { branch=${r#*#}; r=${r%%#*}; }  # owner/repo#branch
   [ -n "$r" ] || continue
+  # A leading "-" would be read as an option by gh/git.
+  [[ $r != -* && $branch != -* ]] || { warn "skipped suspicious repo entry: $r#$branch"; continue; }
   dir=~/projects/$(basename "$r" .git)
   [ -d "$dir/.git" ] && continue
   log "cloning $r"

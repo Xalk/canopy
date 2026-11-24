@@ -23,8 +23,13 @@ export type Config = {
 export const CONFIG_FILE = 'canopy.yaml';
 export class ConfigError extends Error {}
 
-export const REPO = /^([\w.-]+\/[\w.-]+|https:\/\/\S+)$/;
+// No value may start with "-": canopy.yaml is meant to be shared, and these end up as arguments
+// to ssh, gh and git, where a leading "-" would be read as an option (e.g. -oProxyCommand=...).
+export const REPO = /^(\w[\w.-]*\/\w[\w.-]*|https:\/\/[^\s'"]+)$/;
 const NAME = /^[a-z0-9][a-z0-9_-]*$/;
+const BRANCH = /^\w[\w./-]*$/;
+const HOST = /^[A-Za-z0-9][A-Za-z0-9.-]*$/;
+const USER = /^[A-Za-z_][\w.-]*$/;
 
 function fail(field: string, msg: string): never {
   throw new ConfigError(`${CONFIG_FILE}: "${field}" ${msg}`);
@@ -41,15 +46,18 @@ function str(v: unknown, field: string): string | undefined {
   if (/[\r\n]/.test(s)) fail(field, 'must be a single line');
   return s;
 }
-function endpoint(v: unknown, field: string): Endpoint | undefined {
+function endpoint(v: unknown, field: string, defaultPort: number): Endpoint | undefined {
   if (v === undefined) return undefined;
   if (typeof v !== 'object' || v === null) fail(field, 'must be a mapping with host, port, key');
   const o = v as Record<string, unknown>;
   const host = str(o.host, `${field}.host`) ?? fail(`${field}.host`, 'is required');
-  const port = Number(o.port ?? 22);
+  if (!HOST.test(host)) fail(`${field}.host`, `must be a hostname or IP address (got "${host}")`);
+  const user = str(o.user, `${field}.user`);
+  if (user && !USER.test(user)) fail(`${field}.user`, `is not a valid user name (got "${user}")`);
+  const port = Number(o.port ?? defaultPort);
   if (!Number.isInteger(port) || port < 1 || port > 65535)
     fail(`${field}.port`, 'must be a port number');
-  return { host, port, key: str(o.key, `${field}.key`), user: str(o.user, `${field}.user`) };
+  return { host, port, key: str(o.key, `${field}.key`), user };
 }
 
 export function parseConfig(text: string): Config {
@@ -65,7 +73,10 @@ export function parseConfig(text: string): Config {
     const repo =
       str(o?.repo, `repos[${i}].repo`) ?? fail(`repos[${i}]`, 'needs a repo: owner/name');
     if (!REPO.test(repo)) fail(`repos[${i}]`, `must be owner/name or an https URL (got "${repo}")`);
-    return { repo, branch: str(o.branch, `repos[${i}].branch`) };
+    const branch = str(o.branch, `repos[${i}].branch`);
+    if (branch && !BRANCH.test(branch))
+      fail(`repos[${i}].branch`, `is not a valid branch name (got "${branch}")`);
+    return { repo, branch };
   });
 
   const vault = str(raw.vault, 'vault');
@@ -88,8 +99,8 @@ export function parseConfig(text: string): Config {
     channel: oneOf(raw.channel, 'channel', ['telegram', 'none'] as const, 'telegram'),
     mcp: mcp.map((m, i) => str(m, `mcp[${i}]`) ?? fail(`mcp[${i}]`, 'must not be empty')),
     claudeCodeVersion: str(raw.claudeCodeVersion, 'claudeCodeVersion'),
-    ssh: endpoint(raw.ssh, 'ssh'),
-    vps: endpoint(raw.vps, 'vps'),
+    ssh: endpoint(raw.ssh, 'ssh', 2222), // the container's sshd
+    vps: endpoint(raw.vps, 'vps', 22), // the docker host
   };
   if (cfg.target === 'ssh' && !cfg.vps)
     fail('vps', 'is required for target: ssh (the docker host: host, port, key)');

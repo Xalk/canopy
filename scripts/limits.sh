@@ -16,7 +16,7 @@ status)
   find "$state" -name '*-*' -mtime +8 -delete
   out=""
   for w in five_hour seven_day; do
-    read -r pct reset < <(echo "$json" | jq -r --arg w "$w" '.rate_limits[$w] // empty | "\(.used_percentage) \(.resets_at)"')
+    read -r pct reset < <(echo "$json" | jq -r --arg w "$w" '.rate_limits[$w] // empty | select(.used_percentage != null) | "\(.used_percentage) \(.resets_at)"')
     [ -n "$pct" ] || continue
     pct=${pct%.*}
     label=${w/five_hour/5h}; label=${label/seven_day/7d}
