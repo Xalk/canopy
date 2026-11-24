@@ -5,11 +5,13 @@
 # Agent workdir: WORKDIR, else the first repo from REPOS, else ~.
 first=${REPOS%%,*}
 first=${first//[[:space:]]/}
+first=${first%%#*}
 dir=${WORKDIR:-}
 [ -n "$dir" ] || [ -z "$first" ] || dir=$HOME/projects/$(basename "$first" .git)
 [ -d "$dir" ] || dir=$HOME
 
-args="--permission-mode auto --rc --channels plugin:telegram@claude-plugins-official"
+args="--permission-mode auto --rc"
+[ -z "${TELEGRAM_BOT_TOKEN:-}" ] || args="$args --channels plugin:telegram@claude-plugins-official"
 if [ "${FRESH:-}" = "1" ]; then
   cmd="claude $args"
 else

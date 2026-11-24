@@ -26,6 +26,7 @@ fi
 IFS=',' read -ra repos <<< "${REPOS:-}"
 for r in "${repos[@]}"; do
   r=${r//[[:space:]]/}
+  r=${r%%#*}
   [ -n "$r" ] || continue
   name=$(basename "$r" .git)
   check "repo $name cloned" "check REPOS and token access" test -d ~/projects/"$name"/.git

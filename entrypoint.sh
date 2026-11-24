@@ -61,12 +61,14 @@ mkdir -p ~/projects
 IFS=',' read -ra repos <<< "${REPOS:-}"
 for r in "${repos[@]}"; do
   r=${r//[[:space:]]/}
+  branch=${DEFAULT_BRANCH:-}
+  [[ $r != *#* ]] || { branch=${r#*#}; r=${r%%#*}; }  # owner/repo#branch
   [ -n "$r" ] || continue
   dir=~/projects/$(basename "$r" .git)
   [ -d "$dir/.git" ] && continue
   log "cloning $r"
   gh repo clone "$r" "$dir" || { warn "clone failed: $r"; continue; }
-  [ -z "${DEFAULT_BRANCH:-}" ] || git -C "$dir" checkout "$DEFAULT_BRANCH" || warn "no branch $DEFAULT_BRANCH in $r"
+  [ -z "$branch" ] || git -C "$dir" checkout "$branch" || warn "no branch $branch in $r"
   [ ! -f "$dir/package-lock.json" ] || npm ci --prefix "$dir" || warn "npm ci failed in $r"
 done
 
