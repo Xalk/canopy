@@ -28,7 +28,8 @@ how you structure your project docs or your vault.
 - 🔁 **Idempotent start**: repos and vault are cloned once; restarts and rebuilds keep all state in the `/root` volume
 - 🗂️ **Vault sync**: `~/vault` is committed, rebased and pushed every 5 minutes
 - 💬 **Telegram channel**: talk to the agent from your phone; remote control is on as well
-- 🔄 **Fresh sessions on request**: ask for a new session and get a Telegram ping when it's ready
+- 🔄 **Fresh sessions on request**: ask for a new session and get a Telegram ping when it's ready;
+  the agent leaves a handoff that the new session loads automatically
 - 🔔 **Usage-limit alerts**: Telegram warning at 80% of the 5-hour / weekly limit and a notice when it runs out,
   sent by the shell, so they arrive even when the agent can't answer
 - 💾 **Small-volume friendly**: npm / yarn / bun caches stay off the volume; `doctor.sh` warns at 85% disk
@@ -69,6 +70,12 @@ the base ones, not replacing them. See [`examples/`](examples/).
 Skills in the vault's `.claude/skills/` are linked into `~/.claude/skills` one by one.
 
 `PROFILE` (`personal` | `project`) only describes intent in V1; both behave the same.
+
+### Your workflow lives in the vault
+
+canopy ships only general agent rules (tests, verification, review, handoff). Your process — spec stages,
+ticket flow, review checklists, triage — belongs in your own skills: put them in `~/vault/.claude/skills/`
+and canopy links them into every session. Adapt the tool to your process, not the other way round.
 
 ## Manual steps
 

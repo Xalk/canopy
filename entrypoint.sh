@@ -76,6 +76,8 @@ mkdir -p ~/.claude
   cat "$CANOPY/config/CLAUDE.base.md" "$CANOPY/config/telegram.md"
   [ ! -f ~/vault/CLAUDE.md ] || printf '\n## Vault\n@~/vault/CLAUDE.md\n'
   [ ! -f "$LOCAL/CLAUDE.local.md" ] || cat "$LOCAL/CLAUDE.local.md"
+  # Written by the agent before fresh.sh; imported at the start of every session.
+  printf '\n## Handoff from the previous session\n@~/.canopy/handoff.md\n'
 } > ~/.claude/CLAUDE.md
 
 dirs=$(for d in ~/vault ~/projects/*; do [ ! -d "$d" ] || echo "$d"; done | jq -R . | jq -sc .)
