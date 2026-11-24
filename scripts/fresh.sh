@@ -17,11 +17,4 @@ FRESH=1 start.sh
 sleep 20
 if tmux has-session -t claude 2>/dev/null; then msg="✅ New session is ready"; else msg="❌ New session failed to start"; fi
 echo "$(date) $msg"
-
-# Notify via the Bot API directly: no agent turn needed.
-access=~/.claude/channels/telegram/access.json
-[ -n "$TELEGRAM_BOT_TOKEN" ] && [ -f "$access" ] || exit 0
-for id in $(jq -r '.allowFrom[]?' "$access"); do
-  curl -s -o /dev/null "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-    --data-urlencode "chat_id=$id" --data-urlencode "text=$msg"
-done
+notify.sh "$msg"

@@ -29,6 +29,8 @@ how you structure your project docs or your vault.
 - 🗂️ **Vault sync**: `~/vault` is committed, rebased and pushed every 5 minutes
 - 💬 **Telegram channel**: talk to the agent from your phone; remote control is on as well
 - 🔄 **Fresh sessions on request**: ask for a new session and get a Telegram ping when it's ready
+- 🔔 **Usage-limit alerts**: Telegram warning at 80% of the 5-hour / weekly limit and a notice when it runs out,
+  sent by the shell, so they arrive even when the agent can't answer
 - 💾 **Small-volume friendly**: npm / yarn / bun caches stay off the volume; `doctor.sh` warns at 85% disk
 - 🛡️ **Safe by default**: `auto` mode with explicit allow / ask / deny rules, SSH by key only
 - 🩺 **`doctor.sh`**: one ✔/✘ line per component, with a hint for every ✘

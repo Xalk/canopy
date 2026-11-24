@@ -7,6 +7,12 @@
       "source": { "source": "github", "repo": "anthropics/claude-plugins-official" }
     }
   },
+  "statusLine": { "type": "command", "command": "limits.sh status" },
+  "hooks": {
+    "StopFailure": [
+      { "matcher": "rate_limit", "hooks": [{ "type": "command", "command": "limits.sh reached" }] }
+    ]
+  },
   "permissions": {
     "defaultMode": "auto",
     "allow": [
