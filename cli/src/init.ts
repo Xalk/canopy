@@ -119,8 +119,8 @@ export async function init(dir: string, packageDir: string): Promise<number> {
     message: 'Where will it run?',
     default: prev?.target,
     choices: [
-      { name: 'docker on this machine', value: 'docker' as const },
       { name: 'your VPS over SSH (docker on the server)', value: 'ssh' as const },
+      { name: 'docker on this machine (to try it out)', value: 'docker' as const },
       { name: 'Railway', value: 'railway' as const },
     ],
   });
