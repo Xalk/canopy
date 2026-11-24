@@ -11,6 +11,7 @@
   <img src="https://img.shields.io/badge/Ubuntu-24.04-E95420?logo=ubuntu&logoColor=white" alt="Ubuntu 24.04">
   <img src="https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/badge/runs_on-your_VPS-4A7C59" alt="Runs on your VPS">
+  <img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license">
 </p>
 
 ---
@@ -47,7 +48,7 @@ The `canopy` CLI runs on your laptop (Windows, macOS, Linux; Node 20.12+) and se
 You need a VPS with Docker and SSH access by key; to try it first, use `target: docker` on your own machine.
 
 ```bash
-git clone https://github.com/<you>/canopy && cd canopy
+git clone https://github.com/Xalk/canopy && cd canopy
 npm install && npm run build && npm link     # puts `canopy` on your PATH
 
 mkdir ~/my-env && cd ~/my-env
@@ -227,3 +228,7 @@ The SSH host key is stored in the volume, so redeploys don't trigger "host key c
 - [ ] **V2**: other agents
 - [ ] **V3**: more integrations (Slack)
 - [ ] **V4**: several environments managed together
+
+## License
+
+[MIT](LICENSE)
