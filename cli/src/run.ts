@@ -19,7 +19,7 @@ export class CliError extends Error {
 /** Run a command with the terminal attached (or capture stdout). No shell: argv is passed as is. */
 export function run(
   argv: string[],
-  opts: { capture?: boolean; cwd?: string; input?: string; env?: NodeJS.ProcessEnv } = {},
+  opts: { capture?: boolean; cwd?: string; input?: string | Buffer; env?: NodeJS.ProcessEnv } = {},
 ) {
   const r = spawnSync(argv[0], argv.slice(1), {
     cwd: opts.cwd,
@@ -43,3 +43,10 @@ const INSTALL_HINTS: Record<string, string> = {
   ssh: 'Install an OpenSSH client (built into Windows 10+, macOS and most Linux).',
   railway: 'Install the Railway CLI: npm i -g @railway/cli',
 };
+
+/** Run a command and return its stdout as bytes (e.g. a tar archive). */
+export function runBytes(argv: string[], cwd?: string): Buffer {
+  const r = spawnSync(argv[0], argv.slice(1), { cwd, stdio: ['ignore', 'pipe', 'inherit'] });
+  if (r.error || r.status !== 0) throw new CliError(`\`${argv.join(' ')}\` failed.`);
+  return r.stdout;
+}

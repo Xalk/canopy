@@ -3,17 +3,20 @@ import { join, resolve } from 'node:path';
 import { stringify } from 'yaml';
 import type { Config } from '../config.js';
 import { configToEnv, formatEnvFile } from '../env.js';
-import { run } from '../run.js';
+import { run, say } from '../run.js';
 import type { Target } from './target.js';
 
-/** The compose file canopy generates in <project>/.canopy/ (image sources come from the installed package). */
-export function composeFile(cfg: Config, projectDir: string, packageDir: string): string {
+/**
+ * The compose file canopy generates. `context` holds the image sources (the installed package
+ * locally, the upload dir on a VPS); `envFiles` are .env and the generated config.env.
+ */
+export function composeFile(cfg: Config, paths: { context: string; envFiles: string[] }): string {
   const port = cfg.ssh?.port ?? 2222;
   return stringify({
     services: {
       canopy: {
         build: {
-          context: resolve(packageDir),
+          context: paths.context,
           ...(cfg.claudeCodeVersion
             ? { args: { CLAUDE_CODE_VERSION: cfg.claudeCodeVersion } }
             : {}),
@@ -21,7 +24,7 @@ export function composeFile(cfg: Config, projectDir: string, packageDir: string)
         image: cfg.name,
         hostname: cfg.name,
         // Secrets from .env stay out of this file; they still show up in `docker inspect`.
-        env_file: [resolve(projectDir, '.env'), resolve(projectDir, '.canopy', 'config.env')],
+        env_file: paths.envFiles,
         ports: [`${port}:22`],
         volumes: ['home:/root'],
         restart: 'unless-stopped',
@@ -61,13 +64,19 @@ export function dockerTarget(cfg: Config, projectDir: string, packageDir: string
   mkdirSync(join(projectDir, '.canopy'), { recursive: true });
   writeFileSync(
     join(projectDir, '.canopy', 'compose.yml'),
-    composeFile(cfg, projectDir, packageDir),
+    composeFile(cfg, {
+      context: resolve(packageDir),
+      envFiles: [resolve(projectDir, '.env'), resolve(projectDir, '.canopy', 'config.env')],
+    }),
   );
   writeFileSync(join(projectDir, '.canopy', 'config.env'), formatEnvFile(configToEnv(cfg)));
   const a = dockerArgv(cfg, projectDir);
 
   return {
-    up: () => run(a.up).code,
+    up() {
+      say('Building and starting the container (docker compose up -d --build)…');
+      return run(a.up).code;
+    },
     down: () => run(a.down).code,
     logs: () => run(a.logs).code,
     exec: (argv, opts) => run(a.exec(argv, false), { capture: opts?.capture }),

@@ -50,7 +50,7 @@ test('docker argv and generated compose', () => {
   assert.deepEqual(a.up.slice(-5), ['-p', 'test-env', 'up', '-d', '--build']);
   assert.deepEqual(a.exec(['doctor.sh'], false).slice(-4), ['exec', '-T', 'canopy', 'doctor.sh']);
   assert.deepEqual(a.exec(['bash', '-l'], true).slice(-4), ['-it', 'canopy', 'bash', '-l']);
-  const svc = parse(composeFile(cfg, '/p', '/pkg')).services.canopy;
+  const svc = parse(composeFile(cfg, { context: '/pkg', envFiles: ['/p/.env'] })).services.canopy;
   assert.deepEqual(svc.ports, ['2299:22']);
   assert.equal(svc.build.args.CLAUDE_CODE_VERSION, '2.1.0');
   assert.equal(svc.image, 'test-env');

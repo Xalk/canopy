@@ -14,7 +14,8 @@
     "config",
     "scripts",
     ".dockerignore",
-    "examples"
+    "examples",
+    ".railwayignore"
   ],
   "engines": {
     "node": ">=20.12"

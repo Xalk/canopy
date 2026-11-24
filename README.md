@@ -38,32 +38,51 @@ how you structure your project docs or your vault.
 
 ## Quick start
 
+The `canopy` CLI runs on your laptop (Windows, macOS, Linux; Node 20.12+) and drives the container for you.
+
 ```bash
 git clone https://github.com/<you>/canopy && cd canopy
+npm install && npm run build && npm link     # puts `canopy` on your PATH
+
+mkdir ~/my-env && cd ~/my-env
+canopy init            # a few questions -> canopy.yaml, .env (with where-to-get comments), .gitignore
+                       # fill in the keys it lists in .env
+canopy init --check    # validates the keys against GitHub, Linear and Telegram
+canopy up              # builds and starts the container, then runs doctor
+canopy login           # Claude login, Telegram pairing, Figma: no typing inside the container
+```
+
+Then message your bot in Telegram. Logins and clones live in the `/root` volume and survive restarts.
+
+<details>
+<summary><b>Without the CLI</b></summary>
+
+<br>
+
+```bash
 cp .env.example .env      # at minimum: AUTHORIZED_KEYS and GH_TOKEN
 docker compose up -d
 docker compose exec canopy bash -lc doctor.sh
 ```
 
-Then do the [one-time manual steps](#manual-steps). They persist across restarts.
+Then do the [manual steps](#manual-steps).
+
+</details>
 
 ## CLI
 
-The `canopy` CLI runs on your laptop (Windows, macOS, Linux; Node 20.12+) and drives the container for you.
 Put `canopy.yaml` (no secrets) next to `.env` (secrets only) and run commands from that folder.
 
 ```yaml
 # canopy.yaml
 name: canopy            # compose project, image and volume name
-target: docker          # docker for now; ssh and railway come next
+target: docker          # docker | ssh (your VPS) | railway
 vault: you/vault
 repos:
   - you/app
   - { repo: you/api, branch: develop }
+mcp: [linear, figma]
 ```
-
-Start in an empty folder: `canopy init` asks a few questions and writes `canopy.yaml`, `.env` (with a comment
-on where to get each key) and `.gitignore`; `canopy init --check` validates the keys; `canopy up` starts everything.
 
 | Command | What it does |
 |---|---|
@@ -77,8 +96,30 @@ on where to get each key) and `.gitignore`; `canopy init --check` validates the 
 | `canopy doctor` | ✔/✘ for every part; exit code 1 if anything fails |
 | `canopy logs [--agent]` | follow container logs, or watch the agent session read-only |
 | `canopy ssh` | open a shell inside the container |
+| `canopy add-repo <repo> [--branch]` | add a project and clone it; no image rebuild |
+| `canopy remove-repo <repo>` | remove a project; deleting its files in the container is optional |
+| `canopy update --claude [version]` | move Claude Code to a version (default: latest), rebuild, run doctor |
 
-From a clone of this repo: `npm install && npm run build && npm link`.
+### Targets
+
+| `target` | Where it runs | How |
+|---|---|---|
+| `docker` | this machine | `docker compose` with a compose file generated in `.canopy/` |
+| `ssh` | your VPS | uploads the image sources over SSH to `~/canopy-<name>` and runs `docker compose` there; `.env` is uploaded only after you confirm |
+| `railway` | Railway | `railway link` once, then variables (confirmed, sent via stdin), the `/root` volume and `railway up` |
+
+```yaml
+target: ssh
+vps: { host: 1.2.3.4, user: root, port: 22, key: ~/.ssh/id_ed25519 }   # the docker host
+```
+
+```yaml
+target: railway
+ssh: { host: x.proxy.rlwy.net, port: 30029, key: ~/.ssh/id_ed25519 }   # the TCP proxy
+```
+
+Railway CLI can't create a TCP proxy: add it once in the dashboard (service -> Settings -> Networking ->
+TCP Proxy -> port 22) and put its host and port under `ssh:`.
 
 ## Configuration
 
@@ -140,8 +181,10 @@ Connect with `ssh -p 2222 root@localhost`, then:
 
 ## Deploy on Railway
 
+With the CLI: `target: railway` in `canopy.yaml`, then `canopy up` (see [Targets](#targets)).
+
 <details>
-<summary><b>Step by step</b></summary>
+<summary><b>Without the CLI</b></summary>
 
 <br>
 

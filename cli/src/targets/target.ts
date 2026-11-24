@@ -1,9 +1,9 @@
 /** Where the canopy container runs. Commands call these; nothing else knows about docker/ssh/railway. */
 export interface Target {
   /** Build/deploy and start the container. */
-  up(): number;
+  up(): number | Promise<number>;
   /** Stop the container; the /root volume is kept. */
-  down(): number;
+  down(): number | Promise<number>;
   /** Follow container logs. */
   logs(): number;
   /** Run a command inside the container; output goes to the terminal unless captured. */
