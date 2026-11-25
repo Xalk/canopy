@@ -1,62 +1,64 @@
 # Install canopy on a VPS
 
 At the end you'll have Claude Code running on your server in a container, with your repos cloned,
-and (if you want) a Telegram bot to talk to it from your phone. You'll run every command from your
-laptop; you won't need to type anything on the server after step 1.
+and (if you want) a Telegram bot to talk to it from your phone.
 
-Takes about 30 minutes, most of it waiting for the first build.
+You do everything over SSH on the server itself: the canopy CLI lives there next to the container.
+Takes about 20 minutes, most of it waiting for the first build.
 
 ## What you need
 
 - **A VPS** with Ubuntu 22.04 or 24.04, at least 2 GB RAM (4 GB is comfortable) and 20 GB of disk.
-- **SSH access to it with a key**, as root or a user with sudo.
-- **On your laptop**: Node.js 20.12 or newer, git and ssh. Windows, macOS and Linux all work.
+  x86 and ARM (e.g. Oracle Ampere) both work.
+- **SSH access to it with a key.** Any SSH client works (Terminal, MobaXterm, PuTTY).
 - **A GitHub account** with the repos you want the agent to work on.
 - **A Claude subscription** (you log in during step 9).
 
-## 1. Install Docker on the server
+Only port 22 (SSH) needs to be open. Don't open anything else for canopy.
 
-Connect to the server and run:
+## 1. Install Docker
 
 ```bash
 curl -fsSL https://get.docker.com | sh
-docker compose version
+sudo usermod -aG docker $USER
+exit
 ```
 
-The second command should print a version. If you log in as a user other than root, also run
-`sudo usermod -aG docker $USER`, then log out and back in.
-
-That's all you do on the server.
-
-## 2. Check that SSH works without a password
-
-On your laptop:
+Connect again (the group change needs a fresh login) and check:
 
 ```bash
-ssh -i ~/.ssh/id_ed25519 root@YOUR_SERVER_IP
+docker ps
 ```
 
-Use your own key path and user. If it asks for a password, the server doesn't know your key yet:
-add the contents of `~/.ssh/id_ed25519.pub` to `~/.ssh/authorized_keys` on the server and try again.
+It should print an empty table, without `sudo`.
+
+## 2. Install Node.js
+
+```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
+source ~/.bashrc
+nvm install --lts
+node -v
+```
 
 ## 3. Install the canopy CLI
 
 ```bash
-git clone https://github.com/Xalk/canopy
-cd canopy
-npm install
-npm run build
-npm link
+git clone https://github.com/Xalk/canopy.git ~/canopy
+cd ~/canopy
+npm ci && npm run build && npm link
+canopy --version
 ```
 
-Check it: `canopy --version` prints a version number.
+`canopy --version` prints a version number. Run the install from `~/canopy`, the folder with
+`package.json`.
 
 ## 4. Create a GitHub token
 
 1. Open https://github.com/settings/personal-access-tokens/new.
 2. Name it `canopy`, pick an expiration.
 3. **Repository access**: *Only select repositories*. Pick the repos for the agent, plus your notes
-   repo if you use one.
+   repo if you use one. Private repos are fine.
 4. **Permissions**: *Contents* — Read and write; *Pull requests* — Read and write.
 5. Generate it and keep the `github_pat_...` value for step 7.
 
@@ -68,15 +70,15 @@ Skip this if you don't want to talk to the agent from your phone.
 2. Pick a name and a username ending in `bot`.
 3. Keep the token it sends (`123456789:AA...`) for step 7.
 
-One bot per environment: two servers can't share a bot.
+One bot per environment. If another server already uses this bot, stop it before step 8.
 
 ## 6. Describe your environment
 
-Make a new folder for this environment and run the wizard in it:
+Your settings live in their own folder, apart from the canopy code, so updating canopy never
+touches them:
 
 ```bash
-mkdir ~/my-canopy
-cd ~/my-canopy
+mkdir ~/canopy-env && cd ~/canopy-env
 canopy init
 ```
 
@@ -85,22 +87,31 @@ How to answer:
 | Question | Answer |
 |---|---|
 | Profile | `personal` |
-| Where will it run? | *your VPS over SSH* |
-| SSH key | the key from step 2 |
-| VPS host, user, port | your server's IP, `root` (or your user), `22` |
-| Knowledge vault | your notes repo, or *No vault* |
+| Where will it run? | *docker on this machine* |
+| Use the key you log in here with? | **Yes**. canopy lets the same SSH key into the container |
+| Knowledge vault | *I have one* and `owner/name` of your notes repo, or *No vault* |
 | Repo to clone | one `owner/name` at a time; press Enter on an empty line to finish |
 | Branch for … | press Enter for the repo's default branch |
-| Integrations | Telegram is ticked; untick it if you skipped step 5. Space toggles, Enter confirms |
+| Talk to the agent from Telegram? | Yes if you did step 5 |
 | Git author, time zone | press Enter to keep the suggested values |
 
-The wizard writes three files: `canopy.yaml` (settings, safe to commit), `.env` (secrets, never commit)
-and `.gitignore`.
+Two messages you may see on the way, both fine:
+
+- **"Can't look into owner/repo from this machine"**: the repo is private and git on the server
+  has no GitHub login. The container clones it later with your token.
+- **"No SSH key picked"**: only if you answered No about the key. Put your public key into
+  `AUTHORIZED_KEYS` in `.env` by hand (`cat ~/.ssh/authorized_keys` shows it).
+
+The wizard writes `canopy.yaml` (settings, no secrets), `.env` (secrets) and `.gitignore`.
 
 ## 7. Add your secrets
 
-Open `.env` and fill in the empty values: `GH_TOKEN` from step 4, `TELEGRAM_BOT_TOKEN` from step 5.
-Each line has a comment saying where the value comes from. `AUTHORIZED_KEYS` is already filled in.
+```bash
+nano .env
+```
+
+Fill in `GH_TOKEN` from step 4 and `TELEGRAM_BOT_TOKEN` from step 5. Each line has a comment saying
+where the value comes from. Save with `Ctrl+O`, `Enter`, `Ctrl+X`.
 
 Then check them:
 
@@ -116,15 +127,10 @@ Every line should start with ✔. A ✘ line says what to fix.
 canopy up
 ```
 
-What happens:
+It builds the image, starts the container, clones your repos and runs a health check. The first
+build takes a few minutes; later runs take seconds.
 
-1. It asks whether to upload your `.env` to the server. Answer **yes**. The file is stored in
-   `~/canopy-canopy/.env` on the server, readable only by its owner.
-2. It uploads the canopy files and builds the image on the server. **The first build takes 5–10
-   minutes.** Later runs are much faster.
-3. It starts the container, clones your repos and runs a health check.
-
-At the end you'll see a list of ✔ and ✘. **✘ next to "claude logged in" and "telegram paired" is
+At the end you'll see ✔ and ✘ lines. **✘ next to "claude logged in" and "telegram paired" is
 expected**: that's the next step.
 
 ## 9. Log in
@@ -133,16 +139,12 @@ expected**: that's the next step.
 canopy login
 ```
 
-It walks you through each part:
-
 1. **Claude.** You'll see Claude's first-run screen. Pick a theme, choose to log in with your
-   subscription, open the link in your browser, approve, and paste the code back. Answer **Yes** when
-   it asks whether to trust the folder. When you see the input box, press `Ctrl+B`, release, then `D`
-   to go back to your terminal. Claude keeps running.
+   subscription, open the link in a browser (on any device), approve, and paste the code back.
+   Answer **Yes** when it asks whether to trust the folder. When the input box appears, press
+   `Ctrl+B`, release, then `D`. Claude keeps running.
 2. **Telegram** (if enabled). Send any message to your bot. It replies with a 6-character code.
-   Paste the code into the terminal.
-3. **Figma** (only if you enabled it). Open the link, click *Allow*. Your browser then fails to open a
-   `localhost` page; that's expected. Copy that page's full address and paste it into the terminal.
+   Paste the code.
 
 ## 10. Check
 
@@ -150,15 +152,28 @@ It walks you through each part:
 canopy doctor
 ```
 
-Every line should be ✔. Then send your bot a message. The agent answers.
+Every line should be ✔ or – (skipped). Then send your bot a message; the agent answers.
+
+## Add Linear or Figma (optional)
+
+```bash
+canopy mcp add linear    # asks for your Linear API key, then applies
+canopy mcp add figma     # applies, then logs you in to Figma
+```
+
+For Figma: open the link it prints and click *Allow*. Your browser then fails to open a
+`localhost` page; that's expected. Copy that page's full address and paste it into the terminal.
+
+`canopy mcp list` shows what's on; `canopy mcp remove figma` turns it off.
 
 ## Everyday commands
 
-Run them from the folder with `canopy.yaml`.
+Run them from `~/canopy-env`.
 
 | Command | What it does |
 |---|---|
-| `canopy logs --agent` | watch the agent work (leave with `Ctrl+B`, then `D`) |
+| `canopy chat` | open the agent's Claude session and type in it (leave: `Ctrl+B`, then `D`) |
+| `canopy logs --agent` | watch the agent without being able to type |
 | `canopy restart` | restart the agent, keep the conversation |
 | `canopy fresh` | restart the agent with an empty context |
 | `canopy ssh` | open a shell inside the container |
@@ -166,22 +181,27 @@ Run them from the folder with `canopy.yaml`.
 | `canopy update --claude` | move to the latest Claude Code |
 | `canopy down` | stop it; logins and repos are kept |
 
+To update canopy itself: `cd ~/canopy && git pull && npm run build`, then `cd ~/canopy-env && canopy up`.
+
 ## If something goes wrong
 
-- **`Permission denied (publickey)`**: the server doesn't accept your key. Redo step 2.
-- **`docker: command not found` or `permission denied ... docker.sock`**: redo step 1, including
-  the `usermod` line if you're not root.
-- **The build fails with "no space left on device"**: free up disk on the server (`df -h` shows
-  what's left).
-- **The bot doesn't answer**: run `canopy login status`. Also make sure no other server uses the
-  same bot.
+- **`permission denied ... docker.sock`**: you skipped the fresh login after step 1. Reconnect.
+- **`canopy: command not found`**: run step 3 again from `~/canopy`.
+- **The build fails with "no space left on device"**: free up disk (`df -h` shows what's left).
+- **The bot doesn't answer**: run `canopy login status`, and make sure no other server uses the bot.
 - **Anything else**: `canopy logs` shows what the container did on start.
 
 ## Good to know
 
-- Only port 22 (SSH) needs to be open on the server. The container's own SSH port is bound to
-  `127.0.0.1`.
 - Everything the agent has (logins, repos, notes, conversation) lives in the Docker volume
-  `canopy_home`. `canopy down` and rebuilds keep it.
-- To remove canopy from the server completely: `canopy down`, then on the server
-  `docker volume rm canopy_home` and `rm -rf ~/canopy-canopy`.
+  `canopy_home`. `canopy down`, `canopy up` and image rebuilds keep it.
+- To remove canopy completely: `canopy down`, then `docker volume rm canopy_home`, then delete
+  `~/canopy` and `~/canopy-env`.
+
+## Driving a VPS from your laptop instead
+
+You can also keep the CLI on your laptop (Windows, macOS, Linux) and let it manage the server over
+SSH. Do steps 1 and 3–5 as above (step 3 on the laptop), then in `canopy init` choose *a VPS,
+driven from here over SSH* and enter the server's address, user and port. `canopy up` uploads
+everything to `~/canopy-<name>` on the server (it asks before uploading `.env`), and all other
+commands run over the same SSH connection.

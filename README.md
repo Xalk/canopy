@@ -44,23 +44,24 @@ Only two things are required: an SSH key and a GitHub token. Everything else is 
 
 ## Quick start
 
-The `canopy` CLI runs on your laptop (Windows, macOS, Linux; Node 20.12+) and sets up the server for you.
-You need a VPS with Docker and SSH access by key ([step-by-step guide](docs/vps.md)); to try it first, use
-`target: docker` on your own machine.
+The `canopy` CLI (Node 20.12+) runs right on your VPS next to the container, over a normal SSH session.
+**Full walkthrough from a fresh server: [docs/vps.md](docs/vps.md).** In short:
 
 ```bash
-git clone https://github.com/Xalk/canopy && cd canopy
-npm install && npm run build && npm link     # puts `canopy` on your PATH
+git clone https://github.com/Xalk/canopy ~/canopy && cd ~/canopy
+npm ci && npm run build && npm link          # puts `canopy` on your PATH
 
-mkdir ~/my-env && cd ~/my-env
+mkdir ~/canopy-env && cd ~/canopy-env
 canopy init            # a few questions -> canopy.yaml, .env (with where-to-get comments), .gitignore
                        # fill in the keys it lists in .env
 canopy init --check    # validates the keys against GitHub (and Linear, Telegram if you use them)
-canopy up              # uploads to your VPS, builds and starts the container, runs doctor
-canopy login           # Claude login, then Telegram and Figma if enabled: no typing on the server
+canopy up              # builds and starts the container, runs doctor
+canopy login           # Claude login, then Telegram pairing if enabled
+canopy mcp add linear  # optional: Linear, Figma
 ```
 
 If you enabled Telegram, message your bot. Logins and clones live in the `/root` volume and survive restarts.
+The CLI can also run on your laptop and drive the VPS over SSH (`target: ssh`), or deploy to Railway.
 
 <details>
 <summary><b>Without the CLI</b></summary>
@@ -84,14 +85,13 @@ Put `canopy.yaml` (no secrets) next to `.env` (secrets only) and run commands fr
 ```yaml
 # canopy.yaml
 name: canopy            # compose project, image and volume name
-target: ssh             # ssh (your VPS) | docker (this machine) | railway
-vps: { host: 1.2.3.4, user: root, port: 22, key: ~/.ssh/id_ed25519 }
+target: docker          # docker (this machine) | ssh (a VPS, from your laptop) | railway
 vault: you/notes        # optional
 repos:
   - you/app
   - { repo: you/api, branch: develop }
 channel: telegram       # optional: telegram | none
-mcp: [linear, figma]    # optional
+mcp: [linear, figma]    # optional; managed with `canopy mcp add | remove`
 ```
 
 | Command | What it does |
@@ -104,8 +104,10 @@ mcp: [linear, figma]    # optional
 | `canopy restart` | restart the agent and keep the conversation |
 | `canopy fresh` | restart the agent with a clean context |
 | `canopy doctor` | ✔/✘ for every part; exit code 1 if anything fails |
+| `canopy chat` | open the agent's live Claude session and type in it (leave: `Ctrl+B`, then `D`) |
 | `canopy logs [--agent]` | follow container logs, or watch the agent session read-only |
 | `canopy ssh` | open a shell inside the container |
+| `canopy mcp add\|remove\|list` | turn Linear and Figma on or off; `add` saves the key or logs you in |
 | `canopy add-repo <repo> [--branch]` | add a project and clone it; no image rebuild |
 | `canopy remove-repo <repo>` | remove a project; deleting its files in the container is optional |
 | `canopy update --claude [version]` | move Claude Code to a version (default: latest), rebuild, run doctor |
@@ -114,8 +116,8 @@ mcp: [linear, figma]    # optional
 
 | `target` | Where it runs | How |
 |---|---|---|
-| `ssh` (main) | your VPS | uploads the image sources over SSH to `~/canopy-<name>` and runs `docker compose` there; `.env` is uploaded only after you confirm |
-| `docker` | this machine | `docker compose` with a compose file generated in `.canopy/`; handy for trying canopy out |
+| `docker` | this machine | `docker compose` with a compose file generated in `.canopy/`. The usual setup: the CLI on the VPS itself ([guide](docs/vps.md)); also how you try canopy on a laptop |
+| `ssh` | a VPS, from your laptop | uploads the image sources over SSH to `~/canopy-<name>` and runs `docker compose` there; `.env` is uploaded only after you confirm |
 | `railway` | Railway | `railway link` once, then variables (confirmed, sent via stdin), the `/root` volume and `railway up` |
 
 ## Configuration
@@ -161,7 +163,7 @@ canopy login            # or: canopy login claude | telegram | figma | status
 - **Claude**: opens the agent session; log in, trust the folder, detach with `Ctrl+B` `D`.
 - **Telegram** (if `channel: telegram`): DM your bot, paste the 6-character code it replies with. canopy approves it and switches the bot
   to allowlist itself (no agent turn, no tokens).
-- **Figma** (add `figma` to `mcp:`): open the printed link, click Allow, then paste the `localhost` address the
+- **Figma** (turn it on with `canopy mcp add figma`): open the printed link, click Allow, then paste the `localhost` address the
   browser fails to load. That address carries the one-time code back to the server.
 
 <details>
@@ -182,15 +184,14 @@ Connect with `ssh -p 2222 root@localhost`, then:
 
 **Step-by-step guide, from a fresh server to the first Telegram message: [docs/vps.md](docs/vps.md).**
 
-In short: any Linux server with Docker Engine (with the compose plugin) and SSH access by key.
+In short: any Linux server (x86 or ARM) with Docker and SSH access by key. Two ways to drive it:
 
-1. In `canopy.yaml`: `target: ssh` and `vps: { host, user, port, key }`.
-2. `canopy up`: uploads the image sources and config to `~/canopy-<name>`, asks before uploading `.env`
-   (stored there with `chmod 600`), builds and starts the container.
-3. `canopy login`, `canopy doctor`, `canopy ssh` and the rest run over the same SSH connection.
-
-The container's own sshd (port 2222) is bound to `127.0.0.1` on a VPS: the CLI doesn't need it, and ports
-published by Docker bypass host firewalls such as UFW. Reach it through an SSH tunnel if you ever need it.
+- **CLI on the server** (`target: docker`, the guide above): SSH in, install the CLI there, run
+  `canopy init` and `canopy up`. Only port 22 needs to be open.
+- **CLI on your laptop** (`target: ssh`): `canopy up` uploads the image sources and config to
+  `~/canopy-<name>` on the server (asking before it uploads `.env`, stored with `chmod 600`), and
+  every other command runs over the same SSH connection. The container's own sshd is then bound to
+  `127.0.0.1`, because ports published by Docker bypass host firewalls such as UFW.
 
 <details>
 <summary><b>Railway instead of a VPS</b></summary>
