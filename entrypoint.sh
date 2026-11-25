@@ -120,13 +120,23 @@ done
 # Both commands are idempotent (no-op when already on disk / installed).
 { claude plugin marketplace add anthropics/claude-plugins-official >/dev/null \
   && claude plugin install telegram@claude-plugins-official >/dev/null; } || warn "telegram plugin install failed (see README)"
-if [ -n "${LINEAR_API_KEY:-}" ] && ! claude mcp get linear-server >/dev/null 2>&1; then
-  claude mcp add -s user -t http linear-server https://mcp.linear.app/mcp \
+# MCP servers. When MCP is set (the CLI always sets it, "none" = nothing), exactly the listed servers
+# are configured and the others removed, so `canopy mcp remove` is just an edit + restart.
+# Without MCP (a hand-written .env), Linear is added whenever its key is set.
+mcp_on() { if [ -n "${MCP+x}" ]; then [[ ",$MCP," == *,$1,* ]]; else [ "$1" = linear ]; fi; }
+has_mcp() { claude mcp get "$1" >/dev/null 2>&1; }
+drop_mcp() { [ -z "${MCP+x}" ] || ! has_mcp "$1" || claude mcp remove -s user "$1" >/dev/null || warn "removing $1 failed"; }
+if mcp_on linear && [ -n "${LINEAR_API_KEY:-}" ]; then
+  has_mcp linear-server || claude mcp add -s user -t http linear-server https://mcp.linear.app/mcp \
     -H "Authorization: Bearer $LINEAR_API_KEY" || warn "linear mcp add failed"
+else
+  drop_mcp linear-server
 fi
 # Figma uses OAuth: added here, authorized with `canopy login figma` (claude mcp login --no-browser).
-if [[ ",${MCP:-}," == *,figma,* ]] && ! claude mcp get figma >/dev/null 2>&1; then
-  claude mcp add -s user -t http figma https://mcp.figma.com/mcp || warn "figma mcp add failed"
+if mcp_on figma; then
+  has_mcp figma || claude mcp add -s user -t http figma https://mcp.figma.com/mcp || warn "figma mcp add failed"
+else
+  drop_mcp figma
 fi
 
 # 9. Telegram bot token for the channel plugin.

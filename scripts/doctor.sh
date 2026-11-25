@@ -32,16 +32,22 @@ for r in "${repos[@]}"; do
   check "repo $name cloned" "check REPOS and token access" test -d ~/projects/"$name"/.git
 done
 
-if [ -n "${LINEAR_API_KEY:-}" ]; then
+# Same rule as the entrypoint: MCP set = only the listed servers; unset = Linear when its key is set.
+mcp_on() { if [ -n "${MCP+x}" ]; then [[ ",$MCP," == *,$1,* ]]; else [ "$1" = linear ]; fi; }
+if ! mcp_on linear; then
+  skip "linear" "not enabled; canopy mcp add linear"
+elif [ -z "${LINEAR_API_KEY:-}" ]; then
+  skip "linear" "LINEAR_API_KEY empty"
+else
   check "linear connected (claude mcp list)" "check LINEAR_API_KEY" \
     bash -c 'claude mcp list 2>/dev/null | grep -q "^linear-server:.*Connected"'
-else
-  skip "linear" "LINEAR_API_KEY empty"
 fi
 
-if [[ ",${MCP:-}," == *,figma,* ]]; then
+if mcp_on figma; then
   check "figma connected (claude mcp list)" "canopy login figma" \
     bash -c 'claude mcp list 2>/dev/null | grep -q "^figma:.*Connected"'
+else
+  skip "figma" "not enabled; canopy mcp add figma"
 fi
 
 if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then

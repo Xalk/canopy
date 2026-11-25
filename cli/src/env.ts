@@ -10,7 +10,8 @@ export function configToEnv(cfg: Config): Record<string, string> {
     GIT_NAME: cfg.git?.name,
     GIT_EMAIL: cfg.git?.email,
     TZ: cfg.tz,
-    MCP: cfg.mcp.join(','),
+    // Always set: the container then configures exactly these servers ("none" = no MCP servers).
+    MCP: cfg.mcp.join(',') || 'none',
   };
   return Object.fromEntries(Object.entries(env).filter((e): e is [string, string] => !!e[1]));
 }
