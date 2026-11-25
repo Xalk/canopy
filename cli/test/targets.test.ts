@@ -64,6 +64,7 @@ test('railway variables: .env + yaml + Claude Code build arg, empty values dropp
   assert.deepEqual(Object.keys(vars).sort(), [
     'CLAUDE_CODE_VERSION',
     'GH_TOKEN',
+    'MCP',
     'PROFILE',
     'REPOS',
   ]);
@@ -97,4 +98,22 @@ test('helpers: repo dir names and the Dockerfile Claude Code version', () => {
   assert.equal(repoDirName('me/app'), 'app');
   assert.equal(repoDirName('https://github.com/me/app.git'), 'app');
   assert.equal(claudeVersionInDockerfile('FROM x\nARG CLAUDE_CODE_VERSION=2.1.326\n'), '2.1.326');
+});
+
+test('mcp add/remove edits canopy.yaml and keeps comments; MCP is always sent', async () => {
+  const { setMcpYaml, setEnvValue, isMcpName } = await import('../src/edit.js');
+  const { configToEnv } = await import('../src/env.js');
+  const text = '# env\nname: canopy # main\n';
+  assert.equal(configToEnv(parseConfig(text)).MCP, 'none');
+
+  const on = setMcpYaml(text, 'linear', true);
+  assert.match(on, /name: canopy # main/);
+  assert.deepEqual(parseConfig(setMcpYaml(on, 'figma', true)).mcp, ['linear', 'figma']);
+  assert.equal(setMcpYaml(on, 'linear', true), on); // already on: unchanged
+  assert.deepEqual(parseConfig(setMcpYaml(on, 'linear', false)).mcp, []);
+  assert.equal(configToEnv(parseConfig(on)).MCP, 'linear');
+  assert.ok(isMcpName('figma') && !isMcpName('slack') && !isMcpName('toString'));
+
+  assert.equal(setEnvValue('A=1\nKEY=old\n', 'KEY', 'n$1w'), 'A=1\nKEY=n$1w\n');
+  assert.equal(setEnvValue('A=1', 'KEY', 'v', 'where'), 'A=1\n\n# where\nKEY=v\n');
 });

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { styleText } from 'node:util';
-import { confirm } from '@inquirer/prompts';
+import { confirm, password } from '@inquirer/prompts';
 import { Command } from 'commander';
 import { check } from './check.js';
 import { type Config, ConfigError, loadConfig } from './config.js';
@@ -11,13 +11,19 @@ import {
   addRepoYaml,
   claudeVersionInDockerfile,
   editConfigFile,
+  editEnvFile,
+  isMcpName,
   latestClaudeVersion,
+  MCP_SERVERS,
   removeRepoYaml,
   repoDirName,
+  setEnvValue,
+  setMcpYaml,
   setYamlValue,
 } from './edit.js';
+import { parseEnvFile } from './env.js';
 import { init } from './init.js';
-import { login, SERVICES, type Service } from './login.js';
+import { login, loginFigma, openChat, SERVICES, type Service } from './login.js';
 import { CliError, ok, say, warn } from './run.js';
 import { makeTarget } from './targets/index.js';
 import { sh, type Target } from './targets/target.js';
@@ -35,8 +41,8 @@ function doctor(t: Target): number {
   return 1;
 }
 
-/** Build/deploy, wait for the entrypoint, run doctor. Used by up, add-repo, remove-repo, update. */
-async function upFlow(t: Target): Promise<number> {
+/** Build/deploy, wait for the entrypoint, run doctor. Used by up, add-repo, remove-repo, update, mcp. */
+async function upFlow(t: Target, runDoctor = true): Promise<number> {
   if ((await t.up()) !== 0) {
     throw new CliError(
       'Starting the environment failed.',
@@ -48,7 +54,7 @@ async function upFlow(t: Target): Promise<number> {
     throw new CliError('The container did not finish setup.', 'Run `canopy logs` to see why.');
   }
   ok('Container is up.');
-  return doctor(t);
+  return runDoctor ? doctor(t) : 0;
 }
 
 /** Wrap a command: print errors with a hint instead of a stack trace, and set the exit code. */
@@ -255,5 +261,90 @@ program
       }
     }),
   );
+
+program
+  .command('chat')
+  .alias('attach')
+  .description("open the agent's live Claude session and type in it (leave: Ctrl+B, then D)")
+  .addHelpText('after', example('canopy chat'))
+  .action(action(() => openChat(target())));
+
+const mcp = program
+  .command('mcp')
+  .description(`turn MCP servers on or off: ${Object.keys(MCP_SERVERS).join(', ')}`);
+
+const mcpName = (name: string) => {
+  if (!isMcpName(name)) {
+    throw new CliError(
+      `Unknown MCP server "${name}".`,
+      `Use one of: ${Object.keys(MCP_SERVERS).join(', ')}.`,
+    );
+  }
+  return name;
+};
+
+mcp
+  .command('list')
+  .description('show which MCP servers are on')
+  .action(
+    action(() => {
+      const on = loadConfig(cwd).mcp;
+      for (const name of Object.keys(MCP_SERVERS)) {
+        console.log(on.includes(name) ? `✔ ${name}` : `– ${name} (off: canopy mcp add ${name})`);
+      }
+      return 0;
+    }),
+  );
+
+mcp
+  .command('add')
+  .argument('<name>', Object.keys(MCP_SERVERS).join(' | '))
+  .description('turn an MCP server on: save its key, apply, log in if it needs to')
+  .addHelpText('after', example('canopy mcp add linear', 'canopy mcp add figma'))
+  .action(
+    action(async (raw: string) => {
+      const name = mcpName(raw);
+      const spec = MCP_SERVERS[name];
+      if ('secret' in spec && !parseEnvFile(readEnv())[spec.secret]) {
+        const key = await password({
+          message: `${spec.secret} (${spec.where})`,
+          mask: '*',
+          validate: (v) => !!v.trim() || 'Paste the key',
+        });
+        editEnvFile(cwd, (text) => setEnvValue(text, spec.secret, key.trim(), spec.where));
+        ok(`Saved ${spec.secret} to .env.`);
+      }
+      editConfigFile(cwd, (text) => setMcpYaml(text, name, true));
+      ok(`${name} is on in canopy.yaml. Applying it (the agent keeps its conversation)…`);
+      const cfg = loadConfig(cwd);
+      const t = target(cfg);
+      if (name !== 'figma') return upFlow(t);
+      // Figma needs a browser login before doctor can show it as connected.
+      await upFlow(t, false);
+      return (await loginFigma(t, cfg)) ? doctor(t) : 1;
+    }),
+  );
+
+mcp
+  .command('remove')
+  .argument('<name>', Object.keys(MCP_SERVERS).join(' | '))
+  .description('turn an MCP server off and apply')
+  .addHelpText('after', example('canopy mcp remove figma'))
+  .action(
+    action(async (raw: string) => {
+      const name = mcpName(raw);
+      editConfigFile(cwd, (text) => setMcpYaml(text, name, false));
+      ok(`${name} is off in canopy.yaml. Applying it…`);
+      const spec = MCP_SERVERS[name];
+      if ('secret' in spec)
+        say(`${spec.secret} stays in .env; delete that line if you no longer need it.`);
+      return upFlow(target());
+    }),
+  );
+
+function readEnv(): string {
+  const file = join(cwd, '.env');
+  return existsSync(file) ? readFileSync(file, 'utf8') : '';
+}
 
 await program.parseAsync();

@@ -29,9 +29,22 @@ const telegramPaired = (t: Target) =>
 const mcpConnected = (t: Target, name: string) =>
   quiet(t, sh(`claude mcp list 2>/dev/null | grep -q '^${name}:.*Connected'`)).code === 0;
 
+/** Start the agent's tmux session if it isn't running (e.g. Claude exited). */
+export function ensureSession(t: Target): void {
+  if (quiet(t, ['tmux', 'has-session', '-t', 'claude']).code !== 0) quiet(t, sh('start.sh'));
+}
+
+/** Open the agent's live Claude session; the user can type in it. */
+export function openChat(t: Target): number {
+  ensureSession(t);
+  say("Opening the agent's Claude session. You can type here.");
+  say('Leave without stopping it: Ctrl+B, then D. Ctrl+C interrupts Claude.');
+  return t.interactive(['tmux', 'attach', '-t', 'claude']);
+}
+
 async function loginClaude(t: Target): Promise<boolean> {
   if (claudeLoggedIn(t)) return done('Claude: logged in');
-  if (quiet(t, ['tmux', 'has-session', '-t', 'claude']).code !== 0) quiet(t, sh('start.sh'));
+  ensureSession(t);
   say('Claude: you will see the agent session. Pick a theme, log in (open the link,');
   say('paste the code back), and trust the folder.');
   say('When the input box appears, detach: press Ctrl+B, release, then press D.');
@@ -70,13 +83,14 @@ async function loginTelegram(t: Target, cfg: Config): Promise<boolean> {
   }
 }
 
-async function loginFigma(t: Target, cfg: Config): Promise<boolean> {
-  if (!cfg.mcp.includes('figma')) return skipped('Figma: not in `mcp:` in canopy.yaml, skipped');
+export async function loginFigma(t: Target, cfg: Config): Promise<boolean> {
+  if (!cfg.mcp.includes('figma'))
+    return skipped('Figma: not enabled (canopy mcp add figma), skipped');
   if (mcpConnected(t, 'figma')) return done('Figma: connected');
   if (quiet(t, ['claude', 'mcp', 'get', 'figma']).code !== 0) {
     throw new CliError(
       'The figma MCP server is not added in the container yet.',
-      'Run `canopy up` (it adds servers listed in `mcp:`), then `canopy login figma`.',
+      'Run `canopy up` (it adds the servers in `mcp:`), then `canopy login figma`.',
     );
   }
   say('Figma: Claude prints a link. Open it in your browser and click Allow.');
