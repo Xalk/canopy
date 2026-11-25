@@ -197,6 +197,9 @@ rebuilds the CLI and the container. Logins and the conversation are kept.
 
 - Everything the agent has (logins, repos, notes, conversation) lives in the Docker volume
   `canopy_home`. `canopy down`, `canopy up` and image rebuilds keep it.
+- To cap what the container may use, add to `canopy.yaml` and run `canopy up`:
+  `limits: { memory: 4g, cpus: 1.5 }`. Keep `cpus` at or below the server's CPU count (`nproc`),
+  or Docker refuses to start the container. `docker stats --no-stream` shows the current use.
 - To remove canopy completely: `canopy down`, then `docker volume rm canopy_home`, then delete
   `~/canopy` and `~/canopy-env`.
 

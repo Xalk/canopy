@@ -92,6 +92,7 @@ repos:
   - { repo: you/api, branch: develop }
 channel: telegram       # optional: telegram | none
 mcp: [linear, figma]    # optional; managed with `canopy mcp add | remove`
+limits: { memory: 4g, cpus: 1.5 }   # optional; cpus must not exceed the server's CPU count
 ```
 
 | Command | What it does |

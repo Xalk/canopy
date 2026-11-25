@@ -39,6 +39,7 @@ export function buildYaml(cfg: Config): string {
   o.channel = cfg.channel;
   if (cfg.mcp.length) o.mcp = cfg.mcp;
   if (cfg.claudeCodeVersion) o.claudeCodeVersion = cfg.claudeCodeVersion;
+  if (cfg.limits) o.limits = clean(cfg.limits);
   if (cfg.ssh) o.ssh = clean(cfg.ssh);
   if (cfg.vps) o.vps = clean(cfg.vps);
   const hint = cfg.mcp.length
@@ -292,6 +293,7 @@ export async function init(dir: string, packageDir: string): Promise<number> {
     channel: telegram ? 'telegram' : 'none',
     mcp: prev?.mcp ?? [],
     claudeCodeVersion: prev?.claudeCodeVersion,
+    limits: prev?.limits,
     ssh,
     vps,
   };

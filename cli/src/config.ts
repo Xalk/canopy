@@ -16,6 +16,7 @@ export type Config = {
   channel: 'telegram' | 'none';
   mcp: string[];
   claudeCodeVersion?: string;
+  limits?: { memory?: string; cpus?: number }; // docker resource limits for the container
   ssh?: Endpoint; // the container's sshd
   vps?: Endpoint; // the docker host (target: ssh)
 };
@@ -30,6 +31,21 @@ const NAME = /^[a-z0-9][a-z0-9_-]*$/;
 const BRANCH = /^\w[\w./-]*$/;
 const HOST = /^[A-Za-z0-9][A-Za-z0-9.-]*$/;
 const USER = /^[A-Za-z_][\w.-]*$/;
+const MEMORY = /^\d+(\.\d+)?[kmg]$/i;
+
+function limits(v: unknown): Config['limits'] {
+  if (v === undefined) return undefined;
+  if (typeof v !== 'object' || v === null)
+    fail('limits', 'must be a mapping, e.g. { memory: 4g, cpus: 1.5 }');
+  const o = v as Record<string, unknown>;
+  const memory = str(o.memory, 'limits.memory');
+  if (memory && !MEMORY.test(memory))
+    fail('limits.memory', `must look like 512m or 4g (got "${memory}")`);
+  const cpus = o.cpus === undefined ? undefined : Number(o.cpus);
+  if (cpus !== undefined && !(cpus > 0))
+    fail('limits.cpus', `must be a positive number (got "${o.cpus}")`);
+  return { memory, cpus };
+}
 
 function fail(field: string, msg: string): never {
   throw new ConfigError(`${CONFIG_FILE}: "${field}" ${msg}`);
@@ -99,6 +115,7 @@ export function parseConfig(text: string): Config {
     channel: oneOf(raw.channel, 'channel', ['telegram', 'none'] as const, 'telegram'),
     mcp: mcp.map((m, i) => str(m, `mcp[${i}]`) ?? fail(`mcp[${i}]`, 'must not be empty')),
     claudeCodeVersion: str(raw.claudeCodeVersion, 'claudeCodeVersion'),
+    limits: limits(raw.limits),
     ssh: endpoint(raw.ssh, 'ssh', 2222), // the container's sshd
     vps: endpoint(raw.vps, 'vps', 22), // the docker host
   };

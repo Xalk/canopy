@@ -39,3 +39,16 @@ test('init keeps existing authorized keys and adds a new one once', () => {
   assert.equal(mergeAuthorizedKeys(a, b), `${a};${b}`);
   assert.equal(mergeAuthorizedKeys(`${a};${b}`, a), `${a};${b}`);
 });
+
+test('optional resource limits reach the compose file', () => {
+  const svc = (yaml: string) =>
+    parse(composeFile(parseConfig(yaml), { context: '.', envFiles: [] })).services.canopy;
+  const limited = svc('limits: { memory: 4g, cpus: 1.5 }');
+  assert.equal(limited.mem_limit, '4g');
+  assert.equal(limited.cpus, 1.5);
+  const plain = svc('name: x');
+  assert.equal(plain.mem_limit, undefined);
+  assert.equal(plain.cpus, undefined);
+  assert.throws(() => parseConfig('limits: { memory: 4 gigs }'), /"limits.memory" must look like/);
+  assert.throws(() => parseConfig('limits: { cpus: 0 }'), /"limits.cpus" must be a positive/);
+});

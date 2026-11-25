@@ -30,6 +30,9 @@ export function composeFile(cfg: Config, paths: { context: string; envFiles: str
         ports: [cfg.target === 'ssh' ? `127.0.0.1:${port}:22` : `${port}:22`],
         volumes: ['home:/root'],
         restart: 'unless-stopped',
+        // More CPUs than the host has makes Docker refuse to start the container.
+        ...(cfg.limits?.memory ? { mem_limit: cfg.limits.memory } : {}),
+        ...(cfg.limits?.cpus ? { cpus: cfg.limits.cpus } : {}),
       },
     },
     volumes: { home: {} },

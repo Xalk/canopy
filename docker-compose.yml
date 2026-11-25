@@ -11,6 +11,9 @@ services:
     volumes:
       - home:/root
     restart: unless-stopped
+    # Optional resource limits (cpus must not exceed the host's CPU count):
+    # mem_limit: 4g
+    # cpus: 1.5
 
 volumes:
   home:
