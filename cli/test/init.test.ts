@@ -70,3 +70,10 @@ test('telegram pairing code format', async () => {
   assert.ok(!isPairingCode('a1b2c3; rm -rf /'));
   assert.ok(!isPairingCode('zzzzzz'));
 });
+
+test('buildYaml hints at canopy mcp add when no MCP server is on', () => {
+  const plain = buildYaml(parseConfig('repos: [me/app]'));
+  assert.match(plain, /# mcp: \[linear, figma\]\s+\(turn on with: canopy mcp add linear\)/);
+  assert.deepEqual(parseConfig(plain).mcp, []);
+  assert.doesNotMatch(buildYaml(parseConfig('mcp: [figma]')), /turn on with/);
+});

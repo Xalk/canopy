@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { checkbox, input, select } from '@inquirer/prompts';
+import { confirm, input, select } from '@inquirer/prompts';
 import { stringify } from 'yaml';
 import { CONFIG_FILE, type Config, loadConfig, REPO, type Repo } from './config.js';
 import { parseEnvFile } from './env.js';
@@ -41,7 +41,10 @@ export function buildYaml(cfg: Config): string {
   if (cfg.claudeCodeVersion) o.claudeCodeVersion = cfg.claudeCodeVersion;
   if (cfg.ssh) o.ssh = clean(cfg.ssh);
   if (cfg.vps) o.vps = clean(cfg.vps);
-  return `# canopy environment. No secrets here: they live in .env.\n${stringify(o)}`;
+  const hint = cfg.mcp.length
+    ? ''
+    : '# mcp: [linear, figma]   (turn on with: canopy mcp add linear)\n';
+  return `# canopy environment. No secrets here: they live in .env.\n${stringify(o)}${hint}`;
 }
 const clean = (o: object) =>
   Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
@@ -126,8 +129,11 @@ export async function init(dir: string, packageDir: string): Promise<number> {
     message: 'Where will it run?',
     default: prev?.target,
     choices: [
-      { name: 'your VPS over SSH (docker on the server)', value: 'ssh' as const },
-      { name: 'docker on this machine (to try it out)', value: 'docker' as const },
+      {
+        name: 'docker on this machine (this VPS, or your laptop to try it)',
+        value: 'docker' as const,
+      },
+      { name: 'a VPS, driven from here over SSH', value: 'ssh' as const },
       { name: 'Railway', value: 'railway' as const },
     ],
   });
@@ -150,9 +156,31 @@ export async function init(dir: string, packageDir: string): Promise<number> {
     );
     key = `~/.ssh/${pub.replace(/\.pub$/, '')}`;
   } else {
-    warn(
-      'No public key in ~/.ssh. Create one with: ssh-keygen -t ed25519, then rerun canopy init.',
-    );
+    // Typical when init runs on the server itself: no key pair here, but the key you log in
+    // with is in authorized_keys, and that's the one the container should accept too.
+    const authFile = join(sshDir, 'authorized_keys');
+    const authorized = existsSync(authFile)
+      ? readFileSync(authFile, 'utf8')
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter((l) => /^(ssh-|ecdsa-|sk-)/.test(l))
+      : [];
+    const useThem =
+      authorized.length > 0 &&
+      (await confirm({
+        message: `No key pair on this machine. Use the key you log in here with (${authorized.length} in ~/.ssh/authorized_keys)?`,
+        default: true,
+      }));
+    if (useThem) {
+      prevEnv.AUTHORIZED_KEYS = authorized.reduce(
+        (all, k) => mergeAuthorizedKeys(all || undefined, k),
+        prevEnv.AUTHORIZED_KEYS ?? '',
+      );
+    } else if (!prevEnv.AUTHORIZED_KEYS) {
+      say(
+        'No SSH key picked. That is fine: put your public key into AUTHORIZED_KEYS in .env later.',
+      );
+    }
   }
 
   let ssh: Config['ssh'] = { host: 'localhost', port: prev?.ssh?.port ?? 2222, key };
@@ -222,23 +250,22 @@ export async function init(dir: string, packageDir: string): Promise<number> {
     ).trim();
     if (!repo) break;
     const head = defaultBranch(repo);
-    if (!head) warn(`Could not read ${repo} from here; check the name and that you have access.`);
+    if (!head) {
+      // Usually a private repo and no git login on this machine; the container clones with GH_TOKEN.
+      say(`Can't look into ${repo} from this machine (private repo, or no git login here).`);
+      say(
+        'That is fine: the container clones it with GH_TOKEN. Press Enter for its default branch.',
+      );
+    }
     const branch = (await input({ message: `Branch for ${repo}`, default: head ?? '' })).trim();
     repos.push({ repo, branch: branch && branch !== head ? branch : undefined });
   }
 
-  const tools = await checkbox({
-    message: 'Integrations',
-    choices: [
-      {
-        name: 'Telegram channel',
-        value: 'telegram',
-        checked: prev ? prev.channel === 'telegram' : true,
-      },
-      { name: 'Linear', value: 'linear', checked: prev?.mcp.includes('linear') },
-      { name: 'Figma', value: 'figma', checked: prev?.mcp.includes('figma') },
-    ],
+  const telegram = await confirm({
+    message: 'Talk to the agent from Telegram?',
+    default: prev ? prev.channel === 'telegram' : true,
   });
+  say('Linear and Figma can be turned on any time: canopy mcp add linear | figma');
 
   const gitName = await input({
     message: 'Git author name (empty: your GitHub login)',
@@ -262,8 +289,8 @@ export async function init(dir: string, packageDir: string): Promise<number> {
     workdir: prev?.workdir,
     git: { name: gitName || undefined, email: gitEmail || undefined },
     tz: tz || undefined,
-    channel: tools.includes('telegram') ? 'telegram' : 'none',
-    mcp: tools.filter((t) => t !== 'telegram'),
+    channel: telegram ? 'telegram' : 'none',
+    mcp: prev?.mcp ?? [],
     claudeCodeVersion: prev?.claudeCodeVersion,
     ssh,
     vps,
@@ -284,7 +311,5 @@ export async function init(dir: string, packageDir: string): Promise<number> {
   if (slugs.length) console.log(`  2. Give GH_TOKEN access to: ${slugs.join(', ')}`);
   console.log('  3. Check the keys:   canopy init --check');
   console.log('  4. Start:            canopy up');
-  if (target !== 'docker')
-    warn(`target: ${target} is saved; \`canopy up\` for it arrives in the next CLI version.`);
   return 0;
 }
