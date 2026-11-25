@@ -6,7 +6,7 @@ import { styleText } from 'node:util';
 import { confirm, password } from '@inquirer/prompts';
 import { Command } from 'commander';
 import { check } from './check.js';
-import { type Config, ConfigError, loadConfig } from './config.js';
+import { CONFIG_FILE, type Config, ConfigError, loadConfig } from './config.js';
 import {
   addRepoYaml,
   claudeVersionInDockerfile,
@@ -24,7 +24,7 @@ import {
 import { parseEnvFile } from './env.js';
 import { init } from './init.js';
 import { login, loginFigma, openChat, SERVICES, type Service } from './login.js';
-import { CliError, ok, say, warn } from './run.js';
+import { CliError, ok, run, say, warn } from './run.js';
 import { makeTarget } from './targets/index.js';
 import { sh, type Target } from './targets/target.js';
 
@@ -221,19 +221,18 @@ program
 
 program
   .command('update')
+  .alias('upgrade')
   .option('--claude [version]', 'move Claude Code to a version (default: latest)')
-  .description('update Claude Code in the image, or show how to update canopy itself')
-  .addHelpText('after', example('canopy update --claude', 'canopy update --claude 2.1.326'))
+  .description(
+    'update canopy itself (pull, build, rebuild the container), or Claude Code with --claude',
+  )
+  .addHelpText(
+    'after',
+    example('canopy update', 'canopy update --claude', 'canopy update --claude 2.1.326'),
+  )
   .action(
     action(async (opts: { claude?: string | true }) => {
-      if (opts.claude === undefined) {
-        say(`canopy ${version}. To update it: npm i -g canopy-cli@latest`);
-        say(
-          '(from a clone: git pull && npm run build), then run `canopy up` to rebuild the image.',
-        );
-        say('To move Claude Code to another version: canopy update --claude [version]');
-        return 0;
-      }
+      if (opts.claude === undefined) return updateCanopy();
       const cfg = loadConfig(cwd);
       const current =
         cfg.claudeCodeVersion ??
@@ -341,6 +340,64 @@ mcp
       return upFlow(target());
     }),
   );
+
+/** `canopy update`: pull the canopy clone, rebuild the CLI, then rebuild the container with it. */
+async function updateCanopy(): Promise<number> {
+  if (!existsSync(join(packageDir, '.git'))) {
+    say(`canopy ${version} was not installed from git. Update it with: npm i -g canopy-cli@latest`);
+    say('Then run `canopy up` here to rebuild the container.');
+    return 0;
+  }
+  const git = (...args: string[]) => run(['git', '-C', packageDir, ...args], { capture: true });
+  say(`Checking for updates in ${packageDir}…`);
+  if (git('fetch', '--quiet').code !== 0) {
+    throw new CliError(
+      'git fetch failed.',
+      'Check the network and your access to the repo, then retry.',
+    );
+  }
+  const log = git('log', '--oneline', 'HEAD..@{u}');
+  if (log.code !== 0) {
+    throw new CliError(
+      'This canopy clone has no upstream branch.',
+      `Run: git -C ${packageDir} pull`,
+    );
+  }
+  const commits = log.stdout.trim().split(/\r?\n/).filter(Boolean);
+  if (!commits.length) {
+    ok(`canopy ${version} is up to date.`);
+    return 0;
+  }
+  for (const c of commits) console.log(`  ${c}`);
+  if (git('status', '--porcelain', '--untracked-files=no').stdout.trim()) {
+    throw new CliError(
+      `${packageDir} has local changes, so it can't be updated safely.`,
+      `Keep them aside with \`git -C ${packageDir} stash\`, then run canopy update again.`,
+    );
+  }
+  const sure = await confirm({
+    message: `Update canopy (${commits.length} new commit${commits.length > 1 ? 's' : ''})? The container is rebuilt; logins and the conversation are kept.`,
+    default: true,
+  });
+  if (!sure) return 0;
+
+  const steps = [
+    ['git', '-C', packageDir, 'pull', '--ff-only', '--quiet'],
+    ['npm', 'ci', '--no-audit', '--no-fund', '--loglevel=error'],
+    ['npm', 'run', 'build', '--silent'],
+  ];
+  say('Updating the CLI (git pull, npm ci, npm run build)…');
+  const failed = steps.find((argv) => run(argv, { cwd: packageDir }).code !== 0);
+  if (failed) throw new CliError(`\`${failed.join(' ')}\` failed.`, 'See the output above.');
+  ok('CLI updated.');
+
+  if (!existsSync(join(cwd, CONFIG_FILE))) {
+    say('Run `canopy up` in your environment folder to rebuild the container.');
+    return 0;
+  }
+  // Rebuild with the new CLI, not the code already loaded in this process.
+  return run([process.execPath, join(packageDir, 'dist', 'src', 'index.js'), 'up'], { cwd }).code;
+}
 
 function readEnv(): string {
   const file = join(cwd, '.env');

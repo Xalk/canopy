@@ -23,6 +23,8 @@ export function run(
 ) {
   const r = spawnSync(argv[0], argv.slice(1), {
     cwd: opts.cwd,
+    // npm is npm.cmd on Windows, which Node only runs through a shell. Only ever fixed argv here.
+    shell: process.platform === 'win32' && argv[0] === 'npm',
     env: opts.env ? { ...process.env, ...opts.env } : undefined,
     input: opts.input,
     encoding: 'utf8',

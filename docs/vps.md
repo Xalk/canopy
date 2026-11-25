@@ -178,10 +178,12 @@ Run them from `~/canopy-env`.
 | `canopy fresh` | restart the agent with an empty context |
 | `canopy ssh` | open a shell inside the container |
 | `canopy add-repo owner/name` | add a project |
+| `canopy update` | update canopy and rebuild the container |
 | `canopy update --claude` | move to the latest Claude Code |
 | `canopy down` | stop it; logins and repos are kept |
 
-To update canopy itself: `cd ~/canopy && git pull && npm run build`, then `cd ~/canopy-env && canopy up`.
+To update canopy itself, run `canopy update` in `~/canopy-env`: it shows the new commits, then pulls,
+rebuilds the CLI and the container. Logins and the conversation are kept.
 
 ## If something goes wrong
 

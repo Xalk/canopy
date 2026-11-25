@@ -110,6 +110,7 @@ mcp: [linear, figma]    # optional; managed with `canopy mcp add | remove`
 | `canopy mcp add\|remove\|list` | turn Linear and Figma on or off; `add` saves the key or logs you in |
 | `canopy add-repo <repo> [--branch]` | add a project and clone it; no image rebuild |
 | `canopy remove-repo <repo>` | remove a project; deleting its files in the container is optional |
+| `canopy update` (alias `upgrade`) | update canopy: show new commits, pull, rebuild the CLI and the container |
 | `canopy update --claude [version]` | move Claude Code to a version (default: latest), rebuild, run doctor |
 
 ### Targets
