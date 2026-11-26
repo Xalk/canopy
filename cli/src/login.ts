@@ -26,8 +26,10 @@ const telegramPaired = (t: Target) =>
     '(.allowFrom | length > 0) and .dmPolicy == "allowlist"',
     '/root/.claude/channels/telegram/access.json',
   ]).code === 0;
+// `claude mcp get <one server>`, never `claude mcp list`: list also starts the Telegram plugin, whose
+// startup kills the agent's own bot poller (bot.pid) and leaves the bot deaf.
 const mcpConnected = (t: Target, name: string) =>
-  quiet(t, sh(`claude mcp list 2>/dev/null | grep -q '^${name}:.*Connected'`)).code === 0;
+  quiet(t, sh(`claude mcp get ${name} 2>/dev/null | grep -q Connected`)).code === 0;
 
 /** Start the agent's tmux session if it isn't running (e.g. Claude exited). */
 export function ensureSession(t: Target): void {

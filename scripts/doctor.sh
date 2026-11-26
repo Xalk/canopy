@@ -39,13 +39,15 @@ if ! mcp_on linear; then
 elif [ -z "${LINEAR_API_KEY:-}" ]; then
   skip "linear" "LINEAR_API_KEY empty"
 else
-  check "linear connected (claude mcp list)" "check LINEAR_API_KEY" \
-    bash -c 'claude mcp list 2>/dev/null | grep -q "^linear-server:.*Connected"'
+  # `claude mcp get <one server>`, never `claude mcp list`: list starts every MCP server, including a second
+  # Telegram plugin, which kills the agent's bot poller (via its bot.pid) and leaves the bot deaf.
+  check "linear connected" "check LINEAR_API_KEY" \
+    bash -c 'claude mcp get linear-server 2>/dev/null | grep -q "Connected"'
 fi
 
 if mcp_on figma; then
-  check "figma connected (claude mcp list)" "canopy login figma" \
-    bash -c 'claude mcp list 2>/dev/null | grep -q "^figma:.*Connected"'
+  check "figma connected" "canopy login figma" \
+    bash -c 'claude mcp get figma 2>/dev/null | grep -q "Connected"'
 else
   skip "figma" "not enabled; canopy mcp add figma"
 fi
