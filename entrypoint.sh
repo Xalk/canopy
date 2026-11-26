@@ -159,6 +159,16 @@ mkdir -p /run/canopy
 # 10. Agent + vault sync in tmux.
 start.sh
 
+# Tell Telegram the agent is back (after canopy up / update / a server reboot), once Claude had time to start.
+(
+  sleep 20
+  if tmux has-session -t claude 2>/dev/null; then
+    notify.sh "✅ canopy is up: the agent is ready"
+  else
+    notify.sh "❌ canopy started, but the agent session is not running. Run: canopy doctor"
+  fi
+) >/dev/null 2>&1 &
+
 # 11. Keep the container alive.
 log "ready"
 exec /usr/sbin/sshd -D -e

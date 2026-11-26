@@ -5,6 +5,8 @@ All notable changes to this project are documented here. Versions follow [semver
 ## Unreleased
 
 - Telegram shows "typing…" for the whole turn (hooks + `typing.sh`) and reacts 👀 on receipt.
+- Telegram gets "✅ canopy is up" after every container start (up, update, reboot).
+- Fix: `canopy doctor` and `canopy login` no longer stop the Telegram bot from receiving messages.
 - `canopy mcp add|remove|list`, `canopy chat`, `canopy update` self-update, optional `limits:`.
 
 ## 0.1.0
