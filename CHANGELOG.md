@@ -2,6 +2,11 @@
 
 All notable changes to this project are documented here. Versions follow [semver](https://semver.org).
 
+## Unreleased
+
+- Telegram shows "typing…" for the whole turn (hooks + `typing.sh`) and reacts 👀 on receipt.
+- `canopy mcp add|remove|list`, `canopy chat`, `canopy update` self-update, optional `limits:`.
+
 ## 0.1.0
 
 First release.

@@ -15,7 +15,7 @@ sender=$(jq -r .senderId <<<"$entry")
 chat=$(jq -r .chatId <<<"$entry")
 
 jq --arg c "$code" --arg s "$sender" \
-  '.allowFrom = ((.allowFrom // []) + [$s] | unique) | del(.pending[$c]) | .dmPolicy = "allowlist"' \
+  '.allowFrom = ((.allowFrom // []) + [$s] | unique) | del(.pending[$c]) | .dmPolicy = "allowlist" | .ackReaction //= "👀"' \
   "$f" > "$f.tmp" && chmod 600 "$f.tmp" && mv "$f.tmp" "$f"
 # The channel server watches approved/ and tells the user "you're in".
 mkdir -p "$dir/approved"

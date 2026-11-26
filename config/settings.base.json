@@ -9,8 +9,15 @@
   },
   "statusLine": { "type": "command", "command": "limits.sh status" },
   "hooks": {
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "typing.sh start" }] }],
+    "PreToolUse": [
+      { "matcher": "*", "hooks": [{ "type": "command", "command": "typing.sh start" }] }
+    ],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "typing.sh stop" }] }],
+    "Notification": [{ "hooks": [{ "type": "command", "command": "typing.sh stop" }] }],
     "StopFailure": [
-      { "matcher": "rate_limit", "hooks": [{ "type": "command", "command": "limits.sh reached" }] }
+      { "matcher": "rate_limit", "hooks": [{ "type": "command", "command": "limits.sh reached" }] },
+      { "hooks": [{ "type": "command", "command": "typing.sh stop" }] }
     ]
   },
   "permissions": {

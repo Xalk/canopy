@@ -62,6 +62,7 @@ used=$(df --output=pcent /root | tail -1 | tr -dc 0-9)
 check "volume /root ${used}% used (limit 85%)" "find big dirs: du -xh -d2 ~ | sort -h | tail" test "$used" -lt 85
 
 check "tmux session claude alive" "run start.sh" tmux has-session -t claude
+[ -z "${TELEGRAM_BOT_TOKEN:-}" ] || check "tmux session typing alive" "run start.sh" tmux has-session -t typing
 
 if [ -d ~/vault/.git ]; then
   check "tmux session sync alive" "run start.sh" tmux has-session -t sync

@@ -30,7 +30,8 @@ worked for me; override any of them locally.
 - 📦 **Tools**: Claude Code (pinned version), Node LTS, Bun, gh, git, tmux, ripgrep, jq on Ubuntu 24.04
 - 🔁 **Repos and notes**: your repos are cloned once into `~/projects`; an optional notes repo (the "vault") is
   pulled and pushed every 5 minutes. Restarts and rebuilds keep everything in the `/root` volume
-- 💬 **Telegram** (optional): talk to the agent from your phone; remote control is on as well
+- 💬 **Telegram** (optional): talk to the agent from your phone; 👀 when a message lands, "typing…" for as
+  long as the agent works; remote control is on as well
 - 🔄 **Fresh sessions on request**: ask for a new session and get a Telegram ping when it's ready;
   the agent leaves a handoff that the new session loads automatically
 - 🔔 **Usage-limit alerts**: Telegram warning at 80% of the 5-hour / weekly limit and a notice when it runs out,

@@ -144,6 +144,11 @@ if [ -n "${TELEGRAM_BOT_TOKEN:-}" ]; then
   mkdir -p ~/.claude/channels/telegram
   printf 'TELEGRAM_BOT_TOKEN=%s\n' "$TELEGRAM_BOT_TOKEN" > ~/.claude/channels/telegram/.env
   chmod 600 ~/.claude/channels/telegram/.env
+  # React with 👀 the moment a message arrives (a plugin setting). A value you set yourself, "" included, is kept.
+  access=~/.claude/channels/telegram/access.json
+  if [ -f "$access" ] && ! jq -e 'has("ackReaction")' "$access" >/dev/null; then
+    jq '.ackReaction = "👀"' "$access" > "$access.tmp" && chmod 600 "$access.tmp" && mv "$access.tmp" "$access"
+  fi
 fi
 
 # SSH sessions don't inherit the container env and sshd overwrites /proc/1/environ,
