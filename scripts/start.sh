@@ -21,5 +21,7 @@ fi
 
 [ ! -d ~/vault/.git ] || tmux has-session -t sync 2>/dev/null || tmux new -d -s sync vault-sync.sh
 [ -z "${TELEGRAM_BOT_TOKEN:-}" ] || tmux has-session -t typing 2>/dev/null || tmux new -d -s typing 'typing.sh loop'
-tmux has-session -t claude 2>/dev/null || tmux new -d -s claude -c "$dir" "$cmd"
+# A new session starts idle: a turn killed mid-way (fresh.sh, crash, reboot) never ran its Stop hook,
+# and a startup dialog (folder trust, login) runs no hooks, so Telegram would show "typing…" for 30 min.
+tmux has-session -t claude 2>/dev/null || { typing.sh stop; tmux new -d -s claude -c "$dir" "$cmd"; }
 tmux ls
