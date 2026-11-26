@@ -6,6 +6,7 @@ All notable changes to this project are documented here. Versions follow [semver
 
 - Telegram shows "typing…" for the whole turn (hooks + `typing.sh`) and reacts 👀 on receipt.
 - Telegram gets "✅ canopy is up" after every container start (up, update, reboot).
+- The agent can read `.env.example` and other templates; the Read deny now lists the secret `.env` files.
 - Fix: "typing…" no longer sticks after a restart while Claude waits on a startup dialog (folder trust).
 - Fix: `canopy doctor` and `canopy login` no longer stop the Telegram bot from receiving messages.
 - `canopy mcp add|remove|list`, `canopy chat`, `canopy update` self-update, optional `limits:`.
